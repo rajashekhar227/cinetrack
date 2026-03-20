@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Films — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+<header class="navbar" id="navbar"></header>
+
+<div class="page-wrap">
+  <div class="container">
+    <div style="margin-bottom:32px">
+      <h1 style="font-size:2.5rem; margin-bottom:8px">Browse Films</h1>
+      <p style="color:var(--text-secondary)">Explore trending, top-rated, and upcoming films</p>
+    </div>
+
+    <div style="position:relative; margin-bottom:24px">
+      <input type="text" id="searchInput" class="form-input" placeholder="Search for any film…" style="padding-left:44px; font-size:1rem; padding-top:14px; padding-bottom:14px;">
+      <span style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:1.1rem;pointer-events:none;">🔍</span>
+      <button id="clearSearch" class="btn btn-ghost btn-sm" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:none">✕</button>
+    </div>
+
+    <div class="genre-pills" id="genrePills">
+      <div class="genre-pill active" data-genre="">All Genres</div>
+    </div>
+
+    <div class="page-tabs" id="pageTabs">
+      <button class="page-tab active" data-tab="trending">🔥 Trending</button>
+      <button class="page-tab" data-tab="popular">⭐ Popular</button>
+      <button class="page-tab" data-tab="top-rated">🏆 Top Rated</button>
+      <button class="page-tab" data-tab="now-playing">🎭 Now Playing</button>
+      <button class="page-tab" data-tab="upcoming">📅 Upcoming</button>
+    </div>
+
+    <div class="flex-between" style="margin-bottom:16px">
+      <span id="resultsInfo" class="text-muted text-sm"></span>
+    </div>
+
+    <div class="grid-5" id="moviesGrid" style="gap:18px">
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+      <div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>
+    </div>
+
+    <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:40px" id="pagination">
+      <button class="btn btn-outline" id="prevBtn" disabled>← Previous</button>
+      <span class="text-muted" id="pageInfo">Page 1</span>
+      <button class="btn btn-outline" id="nextBtn">Next →</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/api.js"></script>
+<script>
+let currentTab = 'trending', currentPage = 1, currentGenre = '', currentSearch = '', totalPages = 1;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderNav('movies');
+  const params = new URLSearchParams(location.search);
+  if (params.get('tab')) currentTab = params.get('tab');
+  if (params.get('search')) {
+    currentSearch = params.get('search');
+    document.getElementById('searchInput').value = currentSearch;
+  }
+  await loadGenres();
+  await loadMovies();
+  initTabs();
+  initSearch();
+  initPagination();
+});
+
+async function loadGenres() {
+  try {
+    const data = await api.movies.genres();
+    const pills = document.getElementById('genrePills');
+    (data.genres || []).forEach(g => {
+      const el = document.createElement('div');
+      el.className = 'genre-pill';
+      el.dataset.genre = g.id;
+      el.textContent = g.name;
+      el.addEventListener('click', () => {
+        currentGenre = String(g.id);
+        currentPage = 1;
+        loadMovies();
+        document.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
+        el.classList.add('active');
+      });
+      pills.appendChild(el);
+    });
+    pills.querySelector('[data-genre=""]').addEventListener('click', () => {
+      currentGenre = '';
+      currentPage = 1;
+      loadMovies();
+      document.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
+      pills.querySelector('[data-genre=""]').classList.add('active');
+    });
+  } catch(e) {}
+}
+
+async function loadMovies() {
+  const grid = document.getElementById('moviesGrid');
+  grid.innerHTML =
+    '<div class="skeleton" style="aspect-ratio:2/3;border-radius:var(--radius)"></div>'.repeat(10);
+  try {
+    let data;
+    if (currentSearch) {
+      data = await api.movies.search(currentSearch, currentPage);
+    } else if (currentGenre) {
+      data = await api.movies.byGenre(currentGenre, currentPage);
+    } else {
+      const calls = {
+        trending: api.movies.trending,
+        popular: api.movies.popular,
+        'top-rated': api.movies.topRated,
+        'now-playing': api.movies.nowPlaying,
+        upcoming: api.movies.upcoming
+      };
+      data = await (calls[currentTab] || api.movies.popular)(currentPage);
+    }
+    const movies = data.results || [];
+    totalPages = Math.min(data.total_pages || 1, 500);
+    document.getElementById('resultsInfo').textContent = (data.total_results || movies.length).toLocaleString() + ' films found';
+    document.getElementById('pageInfo').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+    document.getElementById('prevBtn').disabled = currentPage <= 1;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+    if (!movies.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎬</div><h3>No movies found</h3></div>';
+    } else {
+      grid.innerHTML = movies.map(movieCardHtml).join('');
+    }
+  } catch(e) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><p>Error: ' + e.message + '</p></div>';
+  }
+}
+
+function initTabs() {
+  document.querySelectorAll('.page-tab').forEach(btn => {
+    if (btn.dataset.tab === currentTab) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      currentTab = btn.dataset.tab;
+      currentPage = 1;
+      currentSearch = '';
+      currentGenre = '';
+      document.getElementById('searchInput').value = '';
+      document.querySelectorAll('.page-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
+      document.querySelector('.genre-pill[data-genre=""]').classList.add('active');
+      loadMovies();
+    });
+  });
+}
+
+function initSearch() {
+  const input = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('clearSearch');
+  let timer;
+  input.addEventListener('input', () => {
+    clearBtn.style.display = input.value ? 'block' : 'none';
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      currentSearch = input.value.trim();
+      currentPage = 1;
+      loadMovies();
+    }, 500);
+  });
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    clearBtn.style.display = 'none';
+    currentSearch = '';
+    currentPage = 1;
+    loadMovies();
+  });
+}
+
+function initPagination() {
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    if (currentPage > 1) { currentPage--; loadMovies(); window.scrollTo(0,0); }
+  });
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    if (currentPage < totalPages) { currentPage++; loadMovies(); window.scrollTo(0,0); }
+  });
+}
+</script>
+</body>
+</html>

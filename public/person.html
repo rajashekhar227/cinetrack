@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Person — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+  <style>
+    .person-header {
+      background: var(--bg-secondary);
+      padding: 40px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      display: flex;
+      gap: 32px;
+      margin-top: 32px;
+    }
+
+    .person-poster {
+      width: 200px;
+      height: 300px;
+      object-fit: cover;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+    }
+
+    .person-info {
+      flex: 1;
+    }
+
+    .person-name {
+      font-family: var(--font-serif);
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+    }
+
+    .person-meta {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+    }
+
+    .person-bio {
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-size: 1rem;
+      max-height: 150px;
+      overflow-y: auto;
+      padding-right: 12px;
+    }
+
+    .person-bio::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .person-bio::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .section-title {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      margin: 40px 0 20px 0;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .person-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .person-meta {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .person-bio {
+        max-height: max-content;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="navbar" id="navbar"></header>
+
+  <main class="container">
+    <div id="loading" style="text-align:center;padding:80px">Loading profile...</div>
+
+    <div id="personContent" style="display:none; padding-bottom:80px">
+      <div class="person-header">
+        <img id="personImage" class="person-poster" src="" alt="Profile">
+        <div class="person-info">
+          <h1 id="personName" class="person-name"></h1>
+          <div class="person-meta" id="personMeta"></div>
+          <div id="personBio" class="person-bio"></div>
+        </div>
+      </div>
+
+      <!-- Cast Section -->
+      <div id="castContainer" style="display:none">
+        <h2 class="section-title">Known For (Acting)</h2>
+        <div class="grid-6" id="castGrid" style="gap:16px"></div>
+      </div>
+
+      <!-- Crew Section -->
+      <div id="crewContainer" style="display:none">
+        <h2 class="section-title">Behind the Camera</h2>
+        <div class="grid-6" id="crewGrid" style="gap:16px"></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast-container"></div>
+  <script src="/js/api.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const personId = urlParams.get('id');
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderNav();
+      if (!personId) return window.location.href = '/';
+
+      try {
+        const person = await api.movies.person(personId);
+        document.title = `${person.name} — CineTrack`;
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('personContent').style.display = 'block';
+
+        // Profile Header
+        const imgEl = document.getElementById('personImage');
+        if (person.profile_path) {
+          imgEl.src = img.profile(person.profile_path, 'h632');
+        } else {
+          imgEl.style.display = 'none';
+        }
+
+        document.getElementById('personName').textContent = person.name;
+
+        const meta = [];
+        if (person.known_for_department) meta.push(`<strong>Department:</strong> ${person.known_for_department}`);
+        if (person.birthday) meta.push(`<strong>Born:</strong> ${person.birthday} ${person.place_of_birth ? `in ${person.place_of_birth}` : ''}`);
+        if (person.deathday) meta.push(`<strong>Died:</strong> ${person.deathday}`);
+        document.getElementById('personMeta').innerHTML = meta.join(' | ');
+
+        document.getElementById('personBio').textContent = person.biography || 'No biography available.';
+
+        // Credits Logic
+        const credits = person.movie_credits || { cast: [], crew: [] };
+
+        // Filter out movies without posters and sort by popularity
+        const sortedCast = credits.cast
+          .filter(m => m.poster_path)
+          .sort((a, b) => b.popularity - a.popularity)
+          .slice(0, 30); // limit to top 30
+
+        if (sortedCast.length > 0) {
+          document.getElementById('castContainer').style.display = 'block';
+          document.getElementById('castGrid').innerHTML = sortedCast.map(m => movieCardHtml(m)).join('');
+        }
+
+        // Crew - group by department or job if needed, but for simplicity, just show distinct popular crew credits
+        // Filter duplicates (same movie, different jobs)
+        const uniqueCrew = [];
+        const seenCrewIds = new Set();
+        for (const m of credits.crew) {
+          if (!seenCrewIds.has(m.id) && m.poster_path) {
+            seenCrewIds.add(m.id);
+            uniqueCrew.push(m);
+          }
+        }
+        uniqueCrew.sort((a, b) => b.popularity - a.popularity);
+        const sortedCrew = uniqueCrew.slice(0, 18); // limit top 18
+
+        if (sortedCrew.length > 0) {
+          document.getElementById('crewContainer').style.display = 'block';
+          document.getElementById('crewGrid').innerHTML = sortedCrew.map(m => movieCardHtml(m)).join('');
+        }
+
+      } catch (e) {
+        document.getElementById('loading').textContent = e.message;
+      }
+    });
+  </script>
+</body>
+
+</html>

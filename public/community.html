@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+<header class="navbar" id="navbar"></header>
+
+<div class="page-wrap">
+  <div class="container">
+    <div style="margin-bottom:32px">
+      <h1 style="font-size:2.5rem;margin-bottom:8px">Community</h1>
+      <p style="color:var(--text-secondary)">See what the CineTrack community is watching right now</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:32px" id="communityLayout">
+      <div>
+        <!-- Feed toggle -->
+        <div class="page-tabs" style="margin-bottom:24px" id="feedTabs">
+          <button class="page-tab active" data-feed="friends">👥 Friends</button>
+          <button class="page-tab" data-feed="popular">🔥 Popular</button>
+          <button class="page-tab" data-feed="groups">🏘️ Groups</button>
+        </div>
+
+        <!-- Friends Feed (Default) -->
+        <div id="friendsFeed" style="display:flex;gap:16px;">
+          <!-- Left: Friends List -->
+          <div style="flex:0 0 200px;border-right:1px solid var(--border);padding-right:16px" id="friendsSidebar">
+            <h4 style="margin-bottom:12px;font-family:var(--font-serif)">Chats</h4>
+            <div id="friendsListContainer">Loading...</div>
+          </div>
+          <!-- Right: Chat Box -->
+          <div style="flex:1;display:flex;flex-direction:column;min-height:500px;max-height:600px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-secondary)" id="chatBoxContainer">
+            <div id="chatHeader" style="padding:16px;border-bottom:1px solid var(--border);font-weight:600;color:var(--text-muted)">Select a friend to chat</div>
+            <div id="chatHistory" style="flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px"></div>
+            <div id="chatInputArea" style="padding:16px;border-top:1px solid var(--border);display:none;gap:8px">
+              <input type="text" id="chatInput" class="form-input" placeholder="Type a message..." style="flex:1" onkeydown="if(event.key==='Enter') sendMessage()">
+              <button class="btn btn-primary btn-sm" onclick="sendMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Popular Feed -->
+        <div id="popularFeed" style="display:none;flex-direction:column;gap:16px">
+          <h3 style="margin:0">Popular Groups</h3>
+          <div id="popularGroupsList"></div>
+        </div>
+
+        <!-- Groups Feed -->
+        <div id="groupsFeed" style="display:none;flex-direction:column;gap:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0">My Groups</h3>
+            <button class="btn btn-primary btn-sm" onclick="showCreateGroupModal()">+ Create Group</button>
+          </div>
+          <div id="myGroupsList"></div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside>
+        <!-- Find Users -->
+        <div class="sidebar-widget">
+          <div class="sidebar-widget-title">FIND PEOPLE</div>
+          <div style="position:relative">
+            <input type="text" id="userSearch" class="form-input" placeholder="Search users…" style="padding-left:36px">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none">🔍</span>
+          </div>
+          <div id="userSearchResults" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Popular Lists -->
+        <div class="sidebar-widget">
+          <div class="sidebar-widget-title">POPULAR LISTS</div>
+          <div id="popularLists"></div>
+        </div>
+
+        <!-- Popular This Week -->
+        <div class="sidebar-widget">
+          <div class="sidebar-widget-title">HOT THIS WEEK</div>
+          <div class="scroll-row" id="hotMovies" style="flex-wrap:nowrap;overflow-x:auto"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- Create Group Modal -->
+<div id="createGroupModal" class="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-elevated);padding:24px;border-radius:var(--radius);width:100%;max-width:400px;border:1px solid var(--border)">
+    <h3 style="margin-bottom:16px;">Create a New Group</h3>
+    <input type="text" id="newGroupName" class="form-input" placeholder="Group Name" style="margin-bottom:12px;">
+    <textarea id="newGroupDesc" class="form-input" placeholder="Description" rows="3" style="margin-bottom:12px;resize:none;"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:24px;cursor:pointer;">
+      <input type="checkbox" id="newGroupPrivate">
+      <span style="font-size:0.9rem">Private Group (Requires Invite Link)</span>
+    </label>
+    <div style="display:flex;justify-content:flex-end;gap:12px;">
+      <button class="btn btn-outline" onclick="document.getElementById('createGroupModal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="createGroup()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/api.js"></script>
+<script>
+const myUser = Auth.getUser();
+let currentFeed = 'friends';
+let activeChatUserId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderNav('community');
+  if (!Auth.isLoggedIn()) {
+    document.querySelectorAll('[data-feed="friends"], [data-feed="groups"]').forEach(el => {
+      el.style.opacity = '0.5';
+      el.title = 'Sign in required';
+    });
+  }
+  await Promise.all([loadFriends(), loadSidebar()]);
+  initFeedTabs();
+  initUserSearch();
+});
+
+async function loadFriends() {
+  if(!Auth.isLoggedIn()){ document.getElementById('friendsListContainer').innerHTML = '<div class="text-muted text-sm" style="margin-top:8px">Sign in to chat</div>'; return; }
+  try {
+    const friends = await api.messages.friends();
+    const c = document.getElementById('friendsListContainer');
+    if(!friends.length){ c.innerHTML = '<p class="text-muted text-sm" style="margin-top:8px">No friends found. Follow some users!</p>'; return; }
+    c.innerHTML = friends.map(f => `
+      <div onclick="openChat('${f._id}', '${f.username}', '${f.avatar}')" style="display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;border-radius:var(--radius-sm);margin-bottom:4px" onmouseover="this.style.background='var(--bg-elevated)'" onmouseout="this.style.background='transparent'">
+        <img src="${f.avatar||`https://ui-avatars.com/api/?name=${f.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
+        <span style="font-size:0.9rem;font-weight:500;text-overflow:ellipsis;white-space:nowrap;overflow:hidden">${f.username}</span>
+      </div>
+    `).join('');
+  } catch(e) { console.error('Error loading friends', e); }
+}
+
+async function openChat(id, username, avatar) {
+  activeChatUserId = id;
+  document.getElementById('chatHeader').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px">
+      <img src="${avatar||`https://ui-avatars.com/api/?name=${username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
+      <span style="color:var(--text-primary)">${username}</span>
+    </div>`;
+  document.getElementById('chatInputArea').style.display = 'flex';
+  document.getElementById('chatHistory').innerHTML = '<div class="text-muted" style="text-align:center">Loading history...</div>';
+  try {
+    const history = await api.messages.history(id);
+    renderChatHistory(history);
+  } catch(e) { console.error('Error loading history', e); }
+}
+
+function renderChatHistory(messages) {
+  const box = document.getElementById('chatHistory');
+  if(!messages.length) { box.innerHTML = '<div class="text-muted" style="text-align:center">No messages yet. Say hi!</div>'; return; }
+  box.innerHTML = messages.map(m => {
+    const isMe = m.sender._id === myUser._id;
+    let content = m.content;
+    if (m.movieId) {
+      content = `
+        <div style="cursor:pointer;background:var(--bg-body);padding:8px;border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border)" onclick="window.location.href='/movie-detail.html?id=${m.movieId}'">
+          <div style="font-weight:600;color:var(--accent);font-size:0.8rem;margin-bottom:6px">🍿 Shared a Movie</div>
+          <div style="display:flex;gap:8px">
+            ${m.posterPath ? `<img src="${img.poster(m.posterPath,'w92')}" style="height:60px;border-radius:4px">` : ''}
+            <div style="font-weight:600">${m.movieTitle}</div>
+          </div>
+        </div>
+        ${m.content ? `<div>${m.content}</div>` : ''}
+      `;
+    }
+    return `
+      <div style="align-self:${isMe?'flex-end':'flex-start'};background:${isMe?'rgba(99,102,241,0.2)':'var(--bg-elevated)'};color:var(--text-primary);padding:8px 12px;border-radius:8px;max-width:85%;word-wrap:break-word;font-size:0.9rem">
+        ${content}
+        <div style="font-size:0.65rem;opacity:0.6;margin-top:6px;text-align:right">${timeAgo(m.createdAt)}</div>
+      </div>
+    `;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendMessage() {
+  if(!activeChatUserId) return;
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  try {
+    await api.messages.send({ receiverId: activeChatUserId, content: text });
+    input.value = '';
+    const history = await api.messages.history(activeChatUserId);
+    renderChatHistory(history);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function initFeedTabs() {
+  document.querySelectorAll('[data-feed]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if ((btn.dataset.feed==='friends' || btn.dataset.feed==='groups') && !Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+      currentFeed = btn.dataset.feed;
+      document.querySelectorAll('[data-feed]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      ['friendsFeed','popularFeed','groupsFeed'].forEach(id => document.getElementById(id).style.display='none');
+      document.getElementById(currentFeed+'Feed').style.display = 'flex';
+      
+      if (currentFeed === 'friends') loadFriends();
+      else if (currentFeed === 'popular') loadPopularFeed();
+      else if (currentFeed === 'groups') loadGroupsFeed();
+    });
+  });
+}
+
+async function loadGroupsFeed() {
+  const feed = document.getElementById('groupsFeed');
+  if (!Auth.isLoggedIn()) { return; }
+  try {
+    const data = await api.groups.list();
+    document.getElementById('myGroupsList').innerHTML = data.myGroups.length ? data.myGroups.map(groupCardHtml).join('') : '<p class="text-muted text-sm">You have not joined any groups.</p>';
+  } catch(e) { console.error('Error loading groups', e); }
+}
+
+async function loadPopularFeed() {
+  const c = document.getElementById('popularGroupsList');
+  c.innerHTML = 'Loading...';
+  try {
+    const groups = await api.groups.popular();
+    if(!groups.length) { c.innerHTML = '<p class="text-muted">No popular public groups.</p>'; return; }
+    c.innerHTML = groups.map(g => groupCardHtml(g)).join('');
+  } catch(e) {}
+}
+
+function groupCardHtml(g) {
+  return `
+    <div class="activity-item" style="cursor:pointer;border:1px solid var(--border);margin-bottom:8px" onclick="window.location.href='/group.html?id=${g._id}'">
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:1.1rem;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
+          ${g.name} ${g.isPrivate ? '<span style="font-size:0.75rem;background:var(--bg-body);padding:2px 6px;border-radius:4px;color:var(--text-muted)">Private</span>' : ''}
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.9rem;margin:4px 0;">${g.description || 'No description'}</p>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px;">
+          ${g.members.length} member(s) &bull; Created by ${g.creator?.username}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function createGroup() {
+  const name = document.getElementById('newGroupName').value.trim();
+  const desc = document.getElementById('newGroupDesc').value.trim();
+  const isPrivate = document.getElementById('newGroupPrivate').checked;
+  if(!name) return toast('Group name is required','error');
+  try {
+    await api.groups.create({ name, description: desc, isPrivate });
+    document.getElementById('createGroupModal').style.display = 'none';
+    toast('Group created!','success');
+    loadGroupsFeed();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function showCreateGroupModal() {
+  if(!Auth.isLoggedIn()) return window.location.href='/login.html';
+  document.getElementById('newGroupName').value='';
+  document.getElementById('newGroupDesc').value='';
+  document.getElementById('newGroupPrivate').checked=false;
+  document.getElementById('createGroupModal').style.display='flex';
+}
+
+
+
+async function loadSidebar() {
+  // Popular lists
+  try {
+    const lists = await api.lists.public();
+    document.getElementById('popularLists').innerHTML = lists.slice(0,4).map(l => `
+      <a href="/lists.html?id=${l._id}" style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:40px;height:40px;border-radius:var(--radius-sm);overflow:hidden;flex-shrink:0;background:var(--bg-elevated)">
+          ${l.movies[0]?.posterPath?`<img src="${img.poster(l.movies[0].posterPath,'w92')}" style="width:100%;height:100%;object-fit:cover">` : '📋'}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.title}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">${l.movies.length} films · by ${l.user?.username}</div>
+        </div>
+      </a>`).join('') || '<p class="text-muted text-sm">No public lists yet</p>';
+  } catch(e) {}
+
+  // Hot movies (trending)
+  try {
+    const data = await api.movies.trending();
+    document.getElementById('hotMovies').innerHTML = (data.results||[]).slice(0,8).map(m => `
+      <div style="flex:0 0 80px;cursor:pointer" onclick="window.location.href='/movie-detail.html?id=${m.id}'">
+        <img src="${img.poster(m.poster_path,'w185')||''}" style="width:80px;height:120px;object-fit:cover;border-radius:var(--radius-sm)" alt="${m.title}" loading="lazy">
+      </div>`).join('');
+  } catch(e) {}
+}
+
+function initUserSearch() {
+  const input = document.getElementById('userSearch'), results = document.getElementById('userSearchResults');
+  let timer;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    if (!input.value.trim()) { results.innerHTML=''; return; }
+    timer = setTimeout(async () => {
+      try {
+        const users = await api.users.search(input.value);
+        results.innerHTML = users.map(u => `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <a href="/profile.html?u=${u.username}" style="display:flex;align-items:center;gap:8px;flex:1">
+              <img src="${u.avatar||`https://ui-avatars.com/api/?name=${u.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
+              <div><div style="font-size:0.85rem;font-weight:600">${u.username}</div><div style="font-size:0.75rem;color:var(--text-muted)">${u.stats?.totalWatched||0} films</div></div>
+            </a>
+            ${myUser && myUser._id !== u._id.toString() ? `<button class="btn btn-primary btn-sm" onclick="followUser('${u._id}',this)">Follow</button>` : ''}
+          </div>`).join('') || '<p class="text-muted text-sm">No users found</p>';
+      } catch(e) {}
+    }, 400);
+  });
+}
+
+async function followUser(id, btn) {
+  if (!Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+  try {
+    const res = await api.users.follow(id);
+    btn.textContent = res.following ? 'Unfollow' : 'Follow';
+    toast(res.following ? 'Now following!' : 'Unfollowed', 'success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+document.getElementById('loadMoreBtn')?.addEventListener('click', () => toast('All caught up!','info'));
+</script>
+</body>
+</html>

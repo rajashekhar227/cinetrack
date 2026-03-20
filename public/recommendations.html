@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recommendations — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+  <style>
+    .rec-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 20px;
+    }
+    .rec-poster {
+      width: 100px;
+      border-radius: var(--radius);
+      object-fit: cover;
+    }
+    .rec-content {
+      flex: 1;
+    }
+    .rec-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .rec-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+    .rec-title:hover {
+      color: var(--accent);
+    }
+    .rec-meta {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .rec-message {
+      font-style: italic;
+      color: var(--text-secondary);
+      padding: 12px;
+      border-left: 3px solid var(--accent);
+      background: var(--bg-body);
+      border-radius: 0 4px 4px 0;
+      margin-top: 12px;
+    }
+    .rec-unread {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(99,102,241,0.1);
+    }
+    .mark-read-btn {
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<header class="navbar" id="navbar"></header>
+
+<main class="container" style="padding-top: calc(var(--nav-h) + 40px); padding-bottom: 80px; min-height: 80vh;">
+  <div class="section-header">
+    <h1 class="section-title">✨ For You</h1>
+  </div>
+  
+  <div id="smartRecsContainer" style="margin-bottom: 40px; display: none;">
+    <h3 style="margin-bottom: 24px;">Recommendations</h3>
+    <div class="grid-5" id="smartRecsRow" style="gap:14px; margin-bottom: 32px;">
+      <!-- Generated via JS -->
+    </div>
+  </div>
+
+  <div id="inboxContainer">
+    <h3>Inbox</h3>
+    <p style="color:var(--text-secondary); margin-bottom: 16px;">Recommendations from friends</p>
+    <div id="recsList">
+      <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+        Fetching recommendations...
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+
+<script src="/js/api.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  renderNav('recommendations');
+  
+  const user = Auth.getUser();
+  if (!user) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  // Load Smart Recommendations
+  try {
+    const smartRes = await api.recs.smart();
+    if (smartRes && smartRes.results && smartRes.results.length > 0) {
+      document.getElementById('smartRecsContainer').style.display = 'block';
+      document.getElementById('smartRecsRow').innerHTML = smartRes.results.map(movieCardHtml).join('');
+    } else if (smartRes && smartRes.genres && smartRes.genres.length > 0) {
+      document.getElementById('smartRecsContainer').style.display = 'block';
+      // Fallback via TMDB if no collaborative recommendations
+      const genreId = smartRes.genres[0]; 
+      const movies = await api.movies.byGenre(genreId);
+      document.getElementById('smartRecsRow').innerHTML = (movies.results || []).slice(0,20).map(movieCardHtml).join('');
+    }
+  } catch (e) {
+    console.error('Failed to load smart recs', e);
+  }
+
+  // Load Inbox
+  try {
+    const recs = await api.recs.inbox();
+    const listEl = document.getElementById('recsList');
+    
+    if (!recs || recs.length === 0) {
+      listEl.innerHTML = `
+        <div class="empty-state" style="text-align:center; padding: 40px; background:var(--bg-secondary); border-radius:var(--radius);">
+          <div style="font-size:3rem; margin-bottom:16px;">📭</div>
+          <p>Your inbox is empty.</p>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = recs.map(r => `
+      <div class="rec-card ${!r.isRead ? 'rec-unread' : ''}" id="rec-${r._id}">
+        ${r.posterPath ? `<a href="/movie-detail.html?id=${r.movieId}"><img src="${img.poster(r.posterPath, 'w154')}" class="rec-poster" alt="${r.movieTitle}"></a>` : ''}
+        <div class="rec-content">
+          <div class="rec-header">
+            <div>
+              <a href="/movie-detail.html?id=${r.movieId}" class="rec-title">${r.movieTitle || 'Unknown Movie'}</a>
+              <div class="rec-meta">
+                Recommended by <a href="/profile.html?u=${r.fromUser?.username}" style="color:var(--accent);">${r.fromUser?.username || 'Someone'}</a>
+                &bull; ${timeAgo(r.createdAt)}
+              </div>
+            </div>
+            ${!r.isRead ? `<button class="btn btn-outline mark-read-btn" onclick="markAsRead('${r._id}')">Mark Read</button>` : `<span style="color:var(--text-secondary);font-size:0.85rem;">Read</span>`}
+          </div>
+          ${r.message ? `<div class="rec-message">"${r.message}"</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    document.getElementById('recsList').innerHTML = `<div style="color:var(--error); padding: 20px;">Failed to load inbox: ${e.message}</div>`;
+  }
+});
+
+async function markAsRead(id) {
+  try {
+    await api.recs.markRead(id);
+    const card = document.getElementById(`rec-${id}`);
+    if (card) {
+      card.classList.remove('rec-unread');
+      const btn = card.querySelector('.mark-read-btn');
+      if (btn) {
+        btn.outerHTML = `<span style="color:var(--text-secondary);font-size:0.85rem;">Read</span>`;
+      }
+      showToast('Marked as read', 'success');
+    }
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+</script>
+</body>
+</html>

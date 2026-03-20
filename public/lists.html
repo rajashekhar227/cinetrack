@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lists — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+<header class="navbar" id="navbar"></header>
+
+<div class="page-wrap" id="pageContent">
+  <!-- Detail View (when ?id= present) -->
+  <div id="listDetailView" style="display:none">
+    <div class="container-sm">
+      <div id="listDetailHeader" style="margin-bottom:32px"></div>
+      <div class="grid-5" id="listDetailMovies" style="gap:14px"></div>
+    </div>
+  </div>
+
+  <!-- Browse View -->
+  <div id="listBrowseView">
+    <div class="container">
+      <div style="margin-bottom:32px;display:flex;justify-content:space-between;align-items:center">
+        <div><h1 style="font-size:2.5rem;margin-bottom:8px">Lists</h1><p style="color:var(--text-secondary)">Curated collections from the CineTrack community</p></div>
+        <button class="btn btn-primary" id="createListBtn" onclick="document.getElementById('createListModal').classList.add('open')">+ Create List</button>
+      </div>
+
+      <div class="page-tabs" style="margin-bottom:24px" id="listTabs">
+        <button class="page-tab active" data-tab="public">🌍 Community Lists</button>
+        <button class="page-tab" data-tab="mine" id="myListsTab">📋 My Lists</button>
+      </div>
+
+      <div class="grid-3" id="listsGrid" style="gap:20px">
+        ${Array(6).fill('<div class="skeleton" style="height:200px;border-radius:var(--radius-lg)"></div>').join('')}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create List Modal -->
+<div class="modal-overlay" id="createListModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('createListModal')">✕</button>
+    <div class="modal-title">Create New List</div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group"><label class="form-label">Title *</label><input type="text" id="mlTitle" class="form-input" placeholder="e.g. My Favourite Horror Films"></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea id="mlDesc" class="form-textarea" placeholder="What makes this list special?" style="min-height:80px"></textarea></div>
+      <div style="display:flex;gap:20px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem"><input type="checkbox" id="mlPublic" checked style="accent-color:var(--accent)"> Public</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem"><input type="checkbox" id="mlRanked" style="accent-color:var(--accent)"> Ranked</label>
+      </div>
+      <button class="btn btn-primary" id="doCreateList">Create List</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Movie to List Modal -->
+<div class="modal-overlay" id="addMovieModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('addMovieModal')">✕</button>
+    <div class="modal-title">Add Movie</div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-group">
+        <label class="form-label">Search Movie</label>
+        <input type="text" id="addMovieSearch" class="form-input" placeholder="Search for a film…">
+        <div id="addMovieResults" style="margin-top:8px;max-height:200px;overflow-y:auto"></div>
+      </div>
+      <div id="selectedMoviePreview" style="display:none;background:var(--bg-elevated);padding:12px;border-radius:var(--radius);display:flex;gap:10px;align-items:center">
+        <img id="selMoviePoster" style="width:40px;height:60px;object-fit:cover;border-radius:4px" alt="">
+        <div><div id="selMovieTitle" style="font-weight:600;font-size:0.9rem"></div></div>
+      </div>
+      <div class="form-group"><label class="form-label">Note (optional)</label><input type="text" id="addMovieNote" class="form-input" placeholder="Why is this on the list?"></div>
+      <button class="btn btn-primary" id="doAddMovie">Add to List</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/api.js"></script>
+<script>
+const myUser = Auth.getUser();
+let currentListId = null, selectedMovieForList = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderNav('lists');
+  const params = new URLSearchParams(location.search);
+  const listId = params.get('id');
+  if (listId) {
+    document.getElementById('listDetailView').style.display='block';
+    document.getElementById('listBrowseView').style.display='none';
+    await loadListDetail(listId);
+  } else {
+    await loadPublicLists();
+    initListTabs();
+  }
+  initCreateList();
+  initAddMovie();
+});
+
+async function loadPublicLists() {
+  const grid = document.getElementById('listsGrid');
+  try {
+    const lists = await api.lists.public();
+    renderListCards(lists, grid);
+  } catch(e) { grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><p>Failed to load lists</p></div>'; }
+}
+
+async function loadMyLists() {
+  if (!Auth.isLoggedIn()) { document.getElementById('listsGrid').innerHTML='<div class="card" style="grid-column:1/-1;text-align:center;padding:32px"><p style="color:var(--text-secondary);margin-bottom:12px">Sign in to see and create your lists</p><a href="/login.html" class="btn btn-primary btn-sm">Sign In</a></div>'; return; }
+  const grid = document.getElementById('listsGrid');
+  grid.innerHTML = Array(3).fill('<div class="skeleton" style="height:200px;border-radius:var(--radius-lg)"></div>').join('');
+  try {
+    const lists = await api.lists.forUser(myUser._id);
+    renderListCards(lists, grid, true);
+  } catch(e) {}
+}
+
+function renderListCards(lists, grid, showEdit=false) {
+  grid.innerHTML = lists.length
+    ? lists.map(l => `
+        <div class="list-card" onclick="window.location.href='/lists.html?id=${l._id}'">
+          <div class="list-card-covers">
+            ${l.movies.slice(0,4).map(m=>`<img class="list-card-cover" src="${img.poster(m.posterPath,'w92')||'https://via.placeholder.com/80x120/1e1e2a'}" alt="" loading="lazy">`).join('')}
+            ${Array(Math.max(0,4-l.movies.length)).fill('<div class="list-card-cover" style="background:var(--bg-elevated)"></div>').join('')}
+          </div>
+          <div class="list-card-body">
+            <div class="list-card-title">${l.title}</div>
+            ${l.description?`<p style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${l.description}</p>`:''}
+            <div class="list-card-meta">
+              <span>by <a href="/profile.html?u=${l.user?.username}" style="color:var(--accent)" onclick="event.stopPropagation()">${l.user?.username||'?'}</a></span>
+              <span>${l.movies.length} film${l.movies.length!==1?'s':''}</span>
+              <span>❤️ ${l.likes?.length||0}</span>
+              ${!l.isPublic?'<span>🔒</span>':''}
+              ${l.isRanked?'<span>🏆 Ranked</span>':''}
+            </div>
+          </div>
+        </div>`).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📋</div><h3>No lists yet</h3><p>Create your first list to get started</p></div>';
+}
+
+async function loadListDetail(listId) {
+  try {
+    const list = await api.lists.detail(listId);
+    currentListId = listId;
+    const isOwner = myUser && myUser._id === list.user._id.toString();
+    document.title = `${list.title} — CineTrack`;
+
+    document.getElementById('listDetailHeader').innerHTML = `
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+            <h1 style="font-size:2rem;font-family:var(--font-display)">${list.title}</h1>
+            ${list.isRanked?'<span class="badge badge-accent">🏆 Ranked</span>':''}
+            ${!list.isPublic?'<span class="badge badge-muted">🔒 Private</span>':''}
+          </div>
+          ${list.description?`<p style="color:var(--text-secondary);margin-bottom:12px">${list.description}</p>`:''}
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <a href="/profile.html?u=${list.user.username}" style="display:flex;align-items:center;gap:8px">
+              <img src="${list.user.avatar||`https://ui-avatars.com/api/?name=${list.user.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
+              <span style="font-size:0.9rem;color:var(--text-secondary)">${list.user.username}</span>
+            </a>
+            <span class="text-muted text-sm">${list.movies.length} films</span>
+            <button class="btn btn-outline btn-sm" onclick="likeList('${list._id}',this)">❤️ ${list.likes?.length||0}</button>
+            <a href="/movies.html" class="btn btn-ghost btn-sm">← Back to Lists</a>
+          </div>
+        </div>
+        ${isOwner?`<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="document.getElementById('addMovieModal').classList.add('open')">+ Add Movie</button><button class="btn btn-danger btn-sm" onclick="deleteList('${list._id}')">Delete List</button></div>`:''}
+      </div>`;
+
+    document.getElementById('listDetailMovies').innerHTML = list.movies.length
+      ? list.movies.map((m,i) => `
+          <div class="movie-card" style="position:relative">
+            ${list.isRanked?`<div style="position:absolute;top:8px;left:8px;z-index:2;background:var(--accent);color:var(--bg-primary);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem">${i+1}</div>`:''}
+            <img class="movie-card-poster" src="${img.poster(m.posterPath)||'https://via.placeholder.com/160x240/16161f/5a5560?text=?'}" alt="${m.movieTitle}" loading="lazy" onclick="window.location.href='/movie-detail.html?id=${m.movieId}'">
+            <div class="movie-card-overlay">
+              ${m.note?`<div style="font-size:0.75rem;color:var(--text-secondary);font-style:italic;margin-bottom:4px">"${m.note}"</div>`:''}
+              <div class="movie-card-title">${m.movieTitle}</div>
+              ${isOwner?`<button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="event.stopPropagation();removeFromList('${list._id}',${m.movieId})">Remove</button>`:''}
+            </div>
+          </div>`)
+        .join('')
+      : '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎬</div><h3>No movies yet</h3>${isOwner?"<p>Add some movies to this list!</p>":""}</div>';
+
+  } catch(e) { toast('Failed to load list: '+e.message,'error'); }
+}
+
+async function likeList(id, btn) {
+  if (!Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+  try {
+    const res = await api.lists.like(id);
+    btn.textContent = `❤️ ${res.likes}`;
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteList(id) {
+  if (!confirm('Delete this list? This cannot be undone.')) return;
+  try {
+    await api.lists.delete(id);
+    toast('List deleted','success');
+    setTimeout(()=>window.location.href='/lists.html',600);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function removeFromList(listId, movieId) {
+  try {
+    await api.lists.removeMovie(listId, movieId);
+    toast('Movie removed','success');
+    await loadListDetail(listId);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function initListTabs() {
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-tab]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      if (btn.dataset.tab==='public') loadPublicLists();
+      else loadMyLists();
+    });
+  });
+}
+
+function initCreateList() {
+  document.getElementById('doCreateList')?.addEventListener('click', async () => {
+    if (!Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+    const title = document.getElementById('mlTitle').value.trim();
+    if (!title) { toast('Title required','error'); return; }
+    try {
+      const list = await api.lists.create({ title, description:document.getElementById('mlDesc').value, isPublic:document.getElementById('mlPublic').checked, isRanked:document.getElementById('mlRanked').checked });
+      toast('List created!','success');
+      closeModal('createListModal');
+      window.location.href = `/lists.html?id=${list._id}`;
+    } catch(e) { toast(e.message,'error'); }
+  });
+}
+
+function initAddMovie() {
+  const input = document.getElementById('addMovieSearch'), results = document.getElementById('addMovieResults');
+  let timer, selMovie = null;
+  input?.addEventListener('input', () => {
+    clearTimeout(timer);
+    if (!input.value.trim()) { results.innerHTML=''; return; }
+    timer = setTimeout(async () => {
+      const data = await api.movies.search(input.value);
+      results.innerHTML = (data.results||[]).slice(0,5).map(m=>`
+        <div class="search-result-item" onclick="selectMovieForList(${m.id},'${m.title.replace(/'/g,"\\'")}','${m.poster_path||''}',this)" style="cursor:pointer">
+          ${img.poster(m.poster_path,'w92')?`<img src="${img.poster(m.poster_path,'w92')}" style="width:32px;height:48px;object-fit:cover;border-radius:3px">`:''} <div class="search-result-info"><div class="search-result-title">${m.title}</div><div class="search-result-year">${m.release_date?.slice(0,4)||''}</div></div>
+        </div>`).join('');
+    }, 400);
+  });
+  window.selectMovieForList = (id, title, poster, el) => {
+    selectedMovieForList = {id, title, poster};
+    document.getElementById('selMoviePoster').src = img.poster(poster,'w92')||'';
+    document.getElementById('selMovieTitle').textContent = title;
+    document.getElementById('selectedMoviePreview').style.display='flex';
+    results.innerHTML=''; input.value=title;
+  };
+  document.getElementById('doAddMovie')?.addEventListener('click', async () => {
+    if (!selectedMovieForList || !currentListId) { toast('Select a movie first','error'); return; }
+    try {
+      await api.lists.addMovie(currentListId, { movieId:selectedMovieForList.id, movieTitle:selectedMovieForList.title, posterPath:selectedMovieForList.poster, note:document.getElementById('addMovieNote').value });
+      toast('Movie added!','success');
+      closeModal('addMovieModal');
+      await loadListDetail(currentListId);
+    } catch(e) { toast(e.message,'error'); }
+  });
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
+</script>
+</body>
+</html>

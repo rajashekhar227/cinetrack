@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-bg-art"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <a href="/" class="logo-text">CINETRACK</a>
+      <div class="logo-sub">Sign in to your account</div>
+    </div>
+    <div id="authError" class="form-error" style="margin-bottom:16px; display:none"></div>
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-input" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" id="loginBtn" style="margin-top:8px; width:100%">Sign In</button>
+      <div id="googleAuthContainer" style="margin-top: 8px; display: flex; justify-content: center;"></div>
+    </div>
+    <div class="auth-switch">
+      Don't have an account? <a href="/register.html">Sign up free</a>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="/js/api.js"></script>
+<script>
+  if (Auth.isLoggedIn()) window.location.href = '/';
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const errEl = document.getElementById('authError');
+    const btn = document.getElementById('loginBtn');
+    if (!email || !password) { errEl.textContent = 'Please fill all fields'; errEl.style.display='block'; return; }
+    btn.textContent = 'Signing in…'; btn.disabled = true;
+    try {
+      const data = await api.auth.login({ email, password });
+      Auth.setAuth(data);
+      toast('Welcome back!', 'success');
+      setTimeout(() => window.location.href = '/', 500);
+    } catch(e) {
+      errEl.textContent = e.message; errEl.style.display = 'block';
+      btn.textContent = 'Sign In'; btn.disabled = false;
+    }
+  });
+  document.getElementById('password').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginBtn').click(); });
+
+  // Initialize Google Auth
+  async function initGoogleAuth() {
+    try {
+      const { clientId } = await api.auth.googleClientId();
+      if (clientId) {
+        const script = document.createElement('script');
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+
+        window.handleGoogleCredential = async (response) => {
+          try {
+            const data = await api.auth.google({ credential: response.credential });
+            Auth.setAuth(data);
+            toast('Welcome back!', 'success');
+            setTimeout(() => window.location.href = '/', 500);
+          } catch(e) {
+            const errEl = document.getElementById('authError');
+            errEl.textContent = e.message; errEl.style.display = 'block';
+          }
+        };
+
+        script.onload = () => {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredential
+          });
+          google.accounts.id.renderButton(
+            document.getElementById("googleAuthContainer"),
+            { theme: "outline", size: "large", width: "100%", text: "signin_with" }
+          );
+        };
+      }
+    } catch (e) { console.error('Error fetching Google Client ID', e); }
+  }
+  initGoogleAuth();
+</script>
+</body>
+</html>

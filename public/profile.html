@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+<header class="navbar" id="navbar"></header>
+
+<div class="profile-header">
+  <div class="profile-cover"><div class="profile-cover-art"></div></div>
+  <div class="container">
+    <div class="profile-user-row" id="profileUserRow">
+      <div class="skeleton" style="width:100px;height:100px;border-radius:50%;flex-shrink:0"></div>
+      <div style="flex:1;padding:16px 0"><div class="skeleton" style="height:40px;width:200px;margin-bottom:10px"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="padding-top:32px; padding-bottom:80px">
+  <div style="display:grid; grid-template-columns:1fr 280px; gap:32px" id="profileLayout">
+    <!-- Main Content -->
+    <div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="films">Films</button>
+        <button class="tab-btn" data-tab="reviews">Reviews</button>
+        <button class="tab-btn" data-tab="watchlist">Watchlist</button>
+        <button class="tab-btn" data-tab="lists">Lists</button>
+        <button class="tab-btn" data-tab="liked">Liked</button>
+        <button class="tab-btn edit-only" data-tab="settings" style="display:none">⚙️ Settings</button>
+      </div>
+
+      <!-- Films tab -->
+      <div class="tab-content active" id="tab-films">
+        <div class="grid-5" id="watchedGrid" style="gap:14px"></div>
+      </div>
+
+      <!-- Reviews tab -->
+      <div class="tab-content" id="tab-reviews">
+        <div id="userReviewsList" style="display:flex;flex-direction:column;gap:14px"></div>
+      </div>
+
+      <!-- Watchlist tab -->
+      <div class="tab-content" id="tab-watchlist">
+        <div class="grid-5" id="watchlistGrid" style="gap:14px"></div>
+      </div>
+
+      <!-- Lists tab -->
+      <div class="tab-content" id="tab-lists">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span class="text-secondary text-sm" id="listsCount">0 lists</span>
+          <button class="btn btn-primary btn-sm edit-only" id="newListBtn" style="display:none">+ New List</button>
+        </div>
+        <div class="grid-2" id="listsGrid" style="gap:16px"></div>
+      </div>
+
+      <!-- Liked tab -->
+      <div class="tab-content" id="tab-liked">
+        <div class="grid-5" id="likedGrid" style="gap:14px"></div>
+      </div>
+
+      <!-- Settings tab -->
+      <div class="tab-content" id="tab-settings">
+        <div class="card" style="max-width:540px">
+          <h3 style="margin-bottom:24px;font-family:var(--font-serif)">Edit Profile</h3>
+          <div style="display:flex;flex-direction:column;gap:18px">
+              <input type="file" id="avatarUpload" accept="image/jpeg, image/png, image/webp, image/gif" style="display:none" onchange="uploadAvatarFile(this)">
+            <div class="form-group">
+              <label class="form-label">Bio</label>
+              <textarea id="settingsBio" class="form-textarea" placeholder="Tell the community about your taste…" style="min-height:80px"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Location</label>
+              <input type="text" id="settingsLocation" class="form-input" placeholder="City, Country">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Website</label>
+              <input type="url" id="settingsWebsite" class="form-input" placeholder="https://…">
+            </div>
+            <button class="btn btn-primary" id="saveSettingsBtn">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside>
+      <div class="sidebar-widget">
+        <div class="sidebar-widget-title">STATS</div>
+        <div id="profileStats" style="display:flex;flex-direction:column;gap:12px"></div>
+      </div>
+      <div class="sidebar-widget" id="followersWidget">
+        <div class="sidebar-widget-title">FOLLOWING</div>
+        <div id="followingList"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- New List Modal -->
+<div class="modal-overlay" id="newListModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('newListModal')">✕</button>
+    <div class="modal-title">Create New List</div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group"><label class="form-label">Title</label><input type="text" id="listTitle" class="form-input" placeholder="e.g. Best Nolan Films"></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea id="listDesc" class="form-textarea" placeholder="What is this list about?" style="min-height:80px"></textarea></div>
+      <div style="display:flex;gap:16px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem"><input type="checkbox" id="listPublic" checked style="accent-color:var(--accent)"> Public</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem"><input type="checkbox" id="listRanked" style="accent-color:var(--accent)"> Ranked</label>
+      </div>
+      <button class="btn btn-primary" id="createListBtn">Create List</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script>
+let profileUser = null;
+const myUser = Auth.getUser();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderNav('');
+  const params = new URLSearchParams(location.search);
+  const username = params.get('u') || myUser?.username;
+  if (!username) { window.location.href = '/login.html'; return; }
+
+  await loadProfile(username);
+  initTabs(username);
+  initSettings();
+});
+
+async function loadProfile(username) {
+  try {
+    profileUser = await api.users.profile(username);
+    document.title = `${profileUser.username} — CineTrack`;
+    const isMe = myUser && myUser._id === profileUser._id.toString();
+    const isFollowing = myUser && profileUser.followers?.some(f => (f._id||f).toString() === myUser._id);
+
+    document.getElementById('profileUserRow').innerHTML = `
+      <div style="position:relative;display:inline-block;cursor:${isMe?'pointer':'default'};flex-shrink:0" ${isMe ? `onclick="document.getElementById('avatarUpload').click()"` : ''}>
+        <img src="${profileUser.avatar||`https://ui-avatars.com/api/?name=${profileUser.username}&background=1e1e2a&color=f5a623&bold=true&size=100`}" class="profile-avatar-img" alt="${profileUser.username}">
+        ${isMe ? `<div style="position:absolute;bottom:4px;right:4px;background:var(--accent);color:#16161f;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.5)">+</div>` : ''}
+      </div>
+      <div class="profile-info">
+        <div class="profile-username">${profileUser.username}</div>
+        ${profileUser.bio ? `<p style="color:var(--text-secondary);font-size:0.9rem;margin-top:6px;max-width:500px">${profileUser.bio}</p>` : ''}
+        <div class="profile-stats-row">
+          <div class="profile-stat"><div class="profile-stat-num">${profileUser.stats?.totalWatched||profileUser.watched?.length||0}</div><div class="profile-stat-label">Films</div></div>
+          <div class="profile-stat"><div class="profile-stat-num">${profileUser.stats?.totalReviews||0}</div><div class="profile-stat-label">Reviews</div></div>
+          <div class="profile-stat"><div class="profile-stat-num">${profileUser.followers?.length||0}</div><div class="profile-stat-label">Followers</div></div>
+          <div class="profile-stat"><div class="profile-stat-num">${profileUser.following?.length||0}</div><div class="profile-stat-label">Following</div></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px">
+          ${isMe
+            ? `<button class="btn btn-outline btn-sm" onclick="showTab('settings')">Edit Profile</button>`
+            : myUser ? `<button class="btn btn-primary btn-sm" id="followBtn" onclick="toggleFollow()">${isFollowing?'Unfollow':'Follow'}</button>` : ''}
+        </div>
+      </div>`;
+
+    if (isMe) {
+      document.querySelectorAll('.edit-only').forEach(el => el.style.display='');
+      // Pre-fill settings
+      // Pre-fill settings
+      document.getElementById('settingsBio').value = profileUser.bio||'';
+      document.getElementById('settingsLocation').value = profileUser.location||'';
+      document.getElementById('settingsWebsite').value = profileUser.website||'';
+    }
+
+    // Stats sidebar
+    document.getElementById('profileStats').innerHTML = `
+      <div class="flex-between"><span class="text-muted text-sm">Films Watched</span><strong>${profileUser.watched?.length||0}</strong></div>
+      <div class="flex-between"><span class="text-muted text-sm">Liked Films</span><strong>${profileUser.liked?.length||0}</strong></div>
+      <div class="flex-between"><span class="text-muted text-sm">Watchlist</span><strong>${profileUser.watchlist?.length||0}</strong></div>
+      <div class="flex-between"><span class="text-muted text-sm">Lists</span><strong>${profileUser.stats?.totalLists||0}</strong></div>`;
+
+    // Following list
+    const following = profileUser.following || [];
+    document.getElementById('followingList').innerHTML = following.slice(0,6).map(f => `
+      <a href="/profile.html?u=${f.username}" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <img src="${f.avatar||`https://ui-avatars.com/api/?name=${f.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
+        <span style="font-size:0.88rem;font-weight:500">${f.username}</span>
+      </a>`).join('') || '<p class="text-muted text-sm">Not following anyone yet</p>';
+
+    // Load films by default
+    renderWatchedGrid();
+  } catch(e) { toast('Failed to load profile','error'); }
+}
+
+function renderWatchedGrid() {
+  const watched = profileUser.watched||[];
+  document.getElementById('watchedGrid').innerHTML = watched.length
+    ? watched.map(m => `
+        <div class="movie-card" onclick="window.location.href='/movie-detail.html?id=${m.movieId}'">
+          ${img.poster(m.posterPath) ? `<img class="movie-card-poster" src="${img.poster(m.posterPath)}" alt="${m.movieTitle}" loading="lazy">` : '<div class="movie-card-poster-placeholder">🎬</div>'}
+          ${m.rating ? `<div class="movie-card-rating">★ ${m.rating}</div>` : ''}
+          <div class="movie-card-overlay"><div class="movie-card-title">${m.movieTitle}</div></div>
+        </div>`).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎬</div><h3>No films logged yet</h3></div>';
+}
+
+function initTabs(username) {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      document.getElementById('tab-'+tab).classList.add('active');
+      if (tab==='reviews') loadUserReviews();
+      if (tab==='watchlist') renderWatchlistGrid();
+      if (tab==='lists') loadUserLists();
+      if (tab==='liked') renderLikedGrid();
+    });
+  });
+}
+
+window.showTab = (tab) => { document.querySelector(`[data-tab="${tab}"]`)?.click(); };
+
+async function loadUserReviews() {
+  const list = document.getElementById('userReviewsList');
+  list.innerHTML = '<div class="skeleton" style="height:100px;border-radius:var(--radius-lg)"></div>';
+  try {
+    const reviews = await api.reviews.forUser(profileUser._id);
+    list.innerHTML = reviews.length
+      ? reviews.map(r => `
+          <div class="review-card">
+            <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+              <img src="${img.poster(r.posterPath,'w92')||'https://via.placeholder.com/40x60/1e1e2a/5a5560?text=?'}" style="width:40px;height:60px;object-fit:cover;border-radius:4px">
+              <div style="flex:1">
+                <a href="/movie-detail.html?id=${r.movieId}" style="font-weight:600;color:var(--accent)">${r.movieTitle}</a>
+                <div style="margin-top:4px">${r.rating?starsHtml(r.rating):''} <span class="text-muted text-xs">${timeAgo(r.createdAt)}</span></div>
+              </div>
+            </div>
+            ${r.review ? `<p class="review-text">${r.review}</p>` : ''}
+          </div>`).join('')
+      : '<div class="empty-state"><div class="empty-icon">✍️</div><h3>No reviews yet</h3></div>';
+  } catch(e) {}
+}
+
+function renderWatchlistGrid() {
+  const wl = profileUser.watchlist||[];
+  document.getElementById('watchlistGrid').innerHTML = wl.length
+    ? wl.map(m => `<div class="movie-card" onclick="window.location.href='/movie-detail.html?id=${m.movieId}'"><img class="movie-card-poster" src="${img.poster(m.posterPath)||'https://via.placeholder.com/160x240/16161f'}" alt="${m.movieTitle}" loading="lazy"><div class="movie-card-overlay"><div class="movie-card-title">${m.movieTitle}</div></div></div>`).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔖</div><h3>Watchlist is empty</h3></div>';
+}
+
+function renderLikedGrid() {
+  const liked = profileUser.liked||[];
+  document.getElementById('likedGrid').innerHTML = liked.length
+    ? liked.map(m => `<div class="movie-card" onclick="window.location.href='/movie-detail.html?id=${m.movieId}'"><img class="movie-card-poster" src="${img.poster(m.posterPath)||'https://via.placeholder.com/160x240/16161f'}" alt="${m.movieTitle}" loading="lazy"><div class="movie-card-overlay"><div class="movie-card-title">${m.movieTitle}</div></div></div>`).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">❤️</div><h3>No liked films yet</h3></div>';
+}
+
+async function loadUserLists() {
+  const grid = document.getElementById('listsGrid');
+  grid.innerHTML = '<div class="skeleton" style="height:160px;border-radius:var(--radius-lg)"></div>'.repeat(2);
+  try {
+    const lists = await api.lists.forUser(profileUser._id);
+    document.getElementById('listsCount').textContent = `${lists.length} list${lists.length!==1?'s':''}`;
+    document.getElementById('newListBtn').style.display = (myUser && myUser._id===profileUser._id.toString()) ? '' : 'none';
+    grid.innerHTML = lists.length
+      ? lists.map(l => `
+          <div class="list-card" onclick="window.location.href='/lists.html?id=${l._id}'">
+            <div class="list-card-covers">
+              ${l.movies.slice(0,4).map(m=>`<img class="list-card-cover" src="${img.poster(m.posterPath,'w92')||'https://via.placeholder.com/80x120/1e1e2a'}" alt="" loading="lazy">`).join('')}
+              ${Array(4-Math.min(l.movies.length,4)).fill('<div class="list-card-cover" style="background:var(--bg-elevated)"></div>').join('')}
+            </div>
+            <div class="list-card-body">
+              <div class="list-card-title">${l.title}</div>
+              <div class="list-card-meta"><span>${l.movies.length} films</span><span>❤️ ${l.likes?.length||0}</span>${!l.isPublic?'<span>🔒 Private</span>':''}</div>
+            </div>
+          </div>`).join('')
+      : '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📋</div><h3>No lists yet</h3></div>';
+  } catch(e) {}
+}
+
+document.getElementById('newListBtn')?.addEventListener('click', () => { document.getElementById('newListModal').classList.add('open'); });
+
+document.getElementById('createListBtn')?.addEventListener('click', async () => {
+  const title = document.getElementById('listTitle').value.trim();
+  if (!title) { toast('Title required','error'); return; }
+  try {
+    await api.lists.create({ title, description: document.getElementById('listDesc').value, isPublic: document.getElementById('listPublic').checked, isRanked: document.getElementById('listRanked').checked });
+    toast('List created!','success');
+    closeModal('newListModal');
+    await loadUserLists();
+  } catch(e) { toast(e.message,'error'); }
+});
+
+async function toggleFollow() {
+  if (!myUser) { window.location.href='/login.html'; return; }
+  try {
+    const res = await api.users.follow(profileUser._id);
+    document.getElementById('followBtn').textContent = res.following ? 'Unfollow' : 'Follow';
+    toast(res.following ? `Following ${profileUser.username}` : `Unfollowed ${profileUser.username}`, 'success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function initSettings() {
+  document.getElementById('saveSettingsBtn')?.addEventListener('click', async () => {
+    try {
+      const data = { bio: document.getElementById('settingsBio').value, location: document.getElementById('settingsLocation').value, website: document.getElementById('settingsWebsite').value };
+      await api.auth.updateProfile(data);
+      toast('Profile updated!','success');
+    } catch(e) { toast(e.message,'error'); }
+  });
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
+
+async function uploadAvatarFile(input) {
+  if (!input.files || !input.files[0]) return;
+  let file = input.files[0];
+  
+  try {
+    // Convert HEIC natively in-browser if detected
+    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic')) {
+      toast('Converting HEIC image...', 'info');
+      if (typeof heic2any !== 'undefined') {
+        const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+        const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+        file = new File([finalBlob], "avatar.jpg", { type: "image/jpeg" });
+      } else {
+        throw new Error("HEIC converter library not loaded.");
+      }
+    }
+  } catch(e) {
+    return toast('Failed to convert HEIC format. Please manually pick a JPEG or PNG image.', 'error');
+  }
+
+  const formData = new FormData();
+  formData.append('avatar', file);
+  
+  const token = Auth.getToken();
+  try {
+    toast('Uploading avatar...', 'info');
+    const res = await fetch('/api/auth/avatar', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+    
+    Auth.setAuth({ ...data.user, token: data.token });
+    toast('Avatar uploaded successfully!', 'success');
+    document.querySelector('.profile-avatar-img').src = data.user.avatar;
+    loadProfile(profileUser.username); // Refresh everything
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+</script>
+</body>
+</html>

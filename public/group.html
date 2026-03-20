@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Group — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+  <style>
+    .group-header {
+      background: var(--bg-secondary);
+      padding: 32px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+    .group-body {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 24px;
+      padding: 24px;
+      background: var(--bg-body);
+      border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .post-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 768px) {
+      .group-body { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header class="navbar" id="navbar"></header>
+
+<main class="container" style="padding: 40px 0; min-height: 80vh;">
+  <div id="loading" style="text-align:center;padding:40px;color:var(--text-secondary)">Loading group...</div>
+  
+  <div id="groupContent" style="display:none">
+    <div class="group-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <h1 id="groupName" style="margin-bottom:8px"></h1>
+          <p id="groupDesc" style="color:var(--text-secondary);margin-bottom:12px;max-width:600px"></p>
+          <div id="groupMeta" style="font-size:0.9rem;color:var(--text-muted)"></div>
+        </div>
+        <div id="groupActions"></div>
+      </div>
+    </div>
+
+    <div class="group-body">
+      <!-- Main Feed -->
+      <div id="mainSection">
+        <div id="joinPrompt" style="display:none;background:var(--bg-elevated);padding:24px;border-radius:var(--radius);text-align:center;border:1px solid var(--border)">
+          <h3 style="margin-bottom:12px">Join this group to participate</h3>
+          <button class="btn btn-primary" onclick="joinGroup()">Join Group</button>
+        </div>
+
+        <div id="postSection" style="display:none">
+          <div style="margin-bottom:24px;display:flex;gap:12px">
+            <input type="text" id="postContent" class="form-input" placeholder="Say something to the group..." onkeydown="if(event.key==='Enter') createPost()">
+            <button class="btn btn-primary" onclick="createPost()">Post</button>
+          </div>
+          <div id="postsFeed"></div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside>
+        <div class="sidebar-widget">
+          <div class="sidebar-widget-title">MEMBERS (<span id="memberCount">0</span>)</div>
+          <div id="membersList" style="display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+<script src="/js/api.js"></script>
+<script>
+  let currentGroup = null;
+  const urlParams = new URLSearchParams(window.location.search);
+  const groupId = urlParams.get('id');
+  const joinCode = urlParams.get('joinCode');
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    renderNav('community');
+    
+    if (joinCode && Auth.isLoggedIn()) {
+      // Auto join logic if joining via invite link
+      try {
+        const group = await api.groups.join({ joinCode });
+        window.history.replaceState({}, document.title, `/group.html?id=${group._id}`);
+        toast('Successfully joined the group!', 'success');
+        return loadGroup(group._id);
+      } catch(e) {
+        toast(`Invalid or expired invite link: ${e.message}`, 'error');
+        document.getElementById('loading').textContent = 'Invalid invite link.';
+      }
+    } else if (joinCode && !Auth.isLoggedIn()) {
+      localStorage.setItem('ct_redirect', window.location.href);
+      window.location.href = '/login.html';
+      return;
+    } else if (groupId) {
+      loadGroup(groupId);
+    } else {
+      window.location.href = '/community.html';
+    }
+  });
+
+  async function loadGroup(id) {
+    try {
+      const data = await api.groups.get(id);
+      currentGroup = data.group;
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('groupContent').style.display = 'block';
+
+      // Header
+      document.getElementById('groupName').innerHTML = `${currentGroup.name} ${currentGroup.isPrivate ? '<span style="font-size:0.9rem;background:var(--bg-elevated);padding:2px 8px;border-radius:4px;color:var(--text-muted);vertical-align:middle;margin-left:8px">🔒 Private</span>' : ''}`;
+      document.getElementById('groupDesc').textContent = currentGroup.description || 'Welcome to the group!';
+      document.getElementById('groupMeta').textContent = `Created by ${currentGroup.creator?.username} on ${new Date(currentGroup.createdAt).toLocaleDateString()}`;
+
+      // Invite Link Action
+      let actionsHtml = '';
+      if (data.isMember) {
+        const link = `${window.location.origin}/group.html?joinCode=${currentGroup.joinCode}`;
+        actionsHtml += `<button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${link}');toast('Invite link copied!','success')">🔗 Copy Invite Link</button>`;
+      }
+      const u = Auth.getUser();
+      if(u && currentGroup.creator._id === u._id) {
+        actionsHtml += `<button class="btn btn-outline btn-sm" style="border-color:#ef4444;color:#ef4444;margin-left:8px" onclick="deleteGroup()">🗑️ Delete</button>`;
+      }
+      document.getElementById('groupActions').innerHTML = actionsHtml;
+
+      // Sidebar Members
+      document.getElementById('memberCount').textContent = currentGroup.members.length;
+      document.getElementById('membersList').innerHTML = currentGroup.members.map(m => {
+        const isAdmin = m._id === currentGroup.creator._id;
+        return `
+        <div style="display:flex;align-items:center;gap:10px">
+          <img src="${m.avatar || `https://ui-avatars.com/api/?name=${m.username}&background=1e1e2a&color=f5a623`}" class="avatar avatar-sm">
+          <a href="/profile.html?u=${m.username}" style="color:var(--text-primary);font-weight:600">${m.username}</a>
+          ${isAdmin ? '<span class="badge" style="background:var(--accent);color:#fff;font-size:0.65rem;padding:2px 6px">Admin</span>' : ''}
+        </div>
+      `}).join('');
+
+      // Main Section
+      if (data.isMember) {
+        document.getElementById('joinPrompt').style.display = 'none';
+        document.getElementById('postSection').style.display = 'block';
+        
+        const feed = document.getElementById('postsFeed');
+        if (!data.posts.length) {
+          feed.innerHTML = '<div class="empty-state">No posts yet. Say hi!</div>';
+        } else {
+          feed.innerHTML = data.posts.map(p => {
+            let contentHTML = p.content;
+            if (p.movieId) {
+              contentHTML = `
+                <div style="cursor:pointer;background:var(--bg-body);padding:8px;border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border);display:inline-block;width:100%" onclick="window.location.href='/movie-detail.html?id=${p.movieId}'">
+                  <div style="font-weight:600;color:var(--accent);font-size:0.8rem;margin-bottom:6px">🍿 Shared a Movie</div>
+                  <div style="display:flex;gap:8px">
+                    ${p.posterPath ? `<img src="${img.poster(p.posterPath,'w92')}" style="height:60px;border-radius:4px">` : ''}
+                    <div style="font-weight:600">${p.movieTitle}</div>
+                  </div>
+                </div>
+                ${p.content && p.content !== 'Shared a movie' ? `<div>${p.content}</div>` : ''}
+              `;
+            }
+            return `
+            <div class="post-card">
+              <div class="post-header">
+                <img src="${p.user.avatar || `https://ui-avatars.com/api/?name=${p.user.username}&background=1e1e2a&color=f5a623`}" class="avatar avatar-sm">
+                <div>
+                  <a href="/profile.html?u=${p.user.username}" style="font-weight:600;color:var(--text-primary)">${p.user.username}</a>
+                  <div style="font-size:0.8rem;color:var(--text-muted)">${timeAgo(p.createdAt)}</div>
+                </div>
+              </div>
+              <div style="color:var(--text-secondary);line-height:1.5">${contentHTML}</div>
+            </div>
+          `}).join('');
+        }
+      } else {
+        document.getElementById('joinPrompt').style.display = 'block';
+        document.getElementById('postSection').style.display = 'none';
+      }
+    } catch(e) {
+      document.getElementById('loading').textContent = e.message;
+    }
+  }
+
+  async function joinGroup() {
+    if (!Auth.isLoggedIn()) return window.location.href = '/login.html';
+    try {
+      await api.groups.join({ groupId });
+      toast('Joined successfully!', 'success');
+      loadGroup(groupId);
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function createPost() {
+    const input = document.getElementById('postContent');
+    const content = input.value.trim();
+    if (!content) return;
+    try {
+      await api.groups.post(groupId, { content });
+      input.value = '';
+      loadGroup(groupId); // reload feed
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function deleteGroup() {
+    if(!confirm('Are you certain you want to delete this group and all its posts? This action cannot be undone.')) return;
+    try {
+      await api.groups.delete(groupId);
+      toast('Group deleted. Redirecting...', 'success');
+      setTimeout(() => window.location.href='/community.html', 1500);
+    } catch(e) { toast(e.message, 'error'); }
+  }
+</script>
+</body>
+</html>

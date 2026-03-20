@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CineTrack — Track Every Frame</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+
+<header class="navbar" id="navbar"></header>
+
+<!-- HERO -->
+<section class="hero">
+  <div id="heroBg" class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+  <div class="container hero-content">
+    <div class="hero-eyebrow">🎬 Your Cinema Companion</div>
+    <h1 class="hero-title">Track Every <em>Film</em> You've Ever Loved</h1>
+    <p class="hero-subtitle">Rate, review, and share the movies that shaped you. Discover what to watch next with friends and our smart recommendations engine.</p>
+    <div class="hero-cta">
+      <a href="/register.html" class="btn btn-primary btn-xl" id="heroCtaBtn">Start Tracking Free</a>
+      <a href="/movies.html" class="btn btn-outline btn-xl">Browse Films</a>
+    </div>
+    <div class="hero-stats" id="heroStats">
+      <div>
+        <div class="hero-stat-num" id="statMovies">–</div>
+        <div class="hero-stat-label">Films Tracked</div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-posters" id="heroPosterGrid"></div>
+</section>
+
+<!-- TRENDING -->
+<section style="padding: 60px 0;" class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">🔥 Trending This Week</h2>
+      <a href="/movies.html" class="btn btn-ghost btn-sm">See All →</a>
+    </div>
+    <div class="scroll-row" id="trendingRow">
+      ${Array(8).fill('<div class="movie-card" style="flex:0 0 160px"><div class="skeleton" style="aspect-ratio:2/3;width:100%"></div></div>').join('')}
+    </div>
+  </div>
+</section>
+
+<!-- NOW PLAYING -->
+<section style="padding: 0 0 60px;" class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">🎭 Now in Cinemas</h2>
+      <a href="/movies.html?tab=now-playing" class="btn btn-ghost btn-sm">See All →</a>
+    </div>
+    <div class="scroll-row" id="nowPlayingRow">
+      ${Array(8).fill('<div class="movie-card" style="flex:0 0 160px"><div class="skeleton" style="aspect-ratio:2/3;width:100%"></div></div>').join('')}
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES SECTION -->
+<section style="padding:60px 0; background:var(--bg-secondary); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div style="text-align:center; margin-bottom:48px">
+      <h2 style="font-family:var(--font-display); font-size:2.8rem; margin-bottom:12px">Everything You Need</h2>
+      <p style="color:var(--text-secondary); max-width:500px; margin:0 auto;">A complete toolkit for every kind of film lover</p>
+    </div>
+    <div class="grid-3" style="gap:24px">
+      <div class="card" style="text-align:center; padding:32px 24px">
+        <div style="font-size:2.8rem; margin-bottom:16px">📖</div>
+        <h3 style="margin-bottom:10px">Film Diary</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7">Keep a record of every film you've watched with dates, ratings and personal notes.</p>
+      </div>
+      <div class="card" style="text-align:center; padding:32px 24px">
+        <div style="font-size:2.8rem; margin-bottom:16px">✍️</div>
+        <h3 style="margin-bottom:10px">Rich Reviews</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7">Write detailed reviews with spoiler protection. Like and comment on reviews from people you follow.</p>
+      </div>
+      <div class="card" style="text-align:center; padding:32px 24px">
+        <div style="font-size:2.8rem; margin-bottom:16px">📋</div>
+        <h3 style="margin-bottom:10px">Custom Lists</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7">Create ranked or unranked lists. Share them publicly or keep them private.</p>
+      </div>
+      <div class="card" style="text-align:center; padding:32px 24px">
+        <div style="font-size:2.8rem; margin-bottom:16px">✨</div>
+        <h3 style="margin-bottom:10px">Smart Recommendations</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7">Get personalized recommendations based on your watch history and genre preferences.</p>
+      </div>
+      <div class="card" style="text-align:center; padding:32px 24px">
+        <div style="font-size:2.8rem; margin-bottom:16px">👥</div>
+        <h3 style="margin-bottom:10px">Community Feed</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7">Follow friends and see what they're watching in real time. Send movie recommendations directly.</p>
+      </div>
+      <div class="card" style="text-align:center; padding:32px 24px">
+        <div style="font-size:2.8rem; margin-bottom:16px">📊</div>
+        <h3 style="margin-bottom:10px">Your Stats</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7">Track your film-watching stats. See your most watched genres, directors, and more.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TOP RATED -->
+<section style="padding:60px 0;" class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">🏆 All-Time Greats</h2>
+      <a href="/movies.html?tab=top-rated" class="btn btn-ghost btn-sm">See All →</a>
+    </div>
+    <div class="grid-6" id="topRatedGrid">
+      ${Array(6).fill('<div class="movie-card"><div class="skeleton" style="aspect-ratio:2/3;width:100%"></div></div>').join('')}
+    </div>
+  </div>
+</section>
+
+<!-- COMMUNITY ACTIVITY -->
+<section style="padding:0 0 60px;">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">🌍 Community Activity</h2>
+      <a href="/community.html" class="btn btn-ghost btn-sm">See All →</a>
+    </div>
+    <div id="globalActivity" style="display:flex; flex-direction:column; gap:10px">
+      ${Array(4).fill('<div class="skeleton" style="height:72px;border-radius:var(--radius)"></div>').join('')}
+    </div>
+  </div>
+</section>
+
+<!-- UPCOMING -->
+<section style="padding:0 0 80px;">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">📅 Coming Soon</h2>
+      <a href="/movies.html?tab=upcoming" class="btn btn-ghost btn-sm">See All →</a>
+    </div>
+    <div class="scroll-row" id="upcomingRow">
+      ${Array(6).fill('<div class="movie-card" style="flex:0 0 160px"><div class="skeleton" style="aspect-ratio:2/3;width:100%"></div></div>').join('')}
+    </div>
+  </div>
+</section>
+
+<div id="toast-container"></div>
+
+<script src="/js/api.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  renderNav('home');
+
+  const user = Auth.getUser();
+  if (user) {
+    document.getElementById('heroCtaBtn').textContent = `Welcome back, ${user.username}!`;
+    document.getElementById('heroCtaBtn').href = '/movies.html';
+  }
+
+  // Load trending for hero bg
+  try {
+    const trending = await api.movies.trending();
+    const movies = trending.results || [];
+
+    // Hero background
+    if (movies[0]?.backdrop_path) {
+      document.getElementById('heroBg').style.backgroundImage = `url(${img.backdrop(movies[0].backdrop_path)})`;
+    }
+
+    // Trending row
+    document.getElementById('trendingRow').innerHTML = movies.slice(0,10).map(movieCardHtml).join('');
+
+    // Floating posters
+    const posterContainer = document.getElementById('heroPosterGrid');
+    const positions = [
+      { top:'10%', left:'5%', w:120, rot:'-4deg', delay:'0s' },
+      { top:'20%', left:'30%', w:150, rot:'3deg', delay:'0.5s' },
+      { top:'5%', left:'58%', w:110, rot:'-2deg', delay:'1s' },
+      { top:'45%', left:'12%', w:95, rot:'5deg', delay:'1.5s' },
+      { top:'50%', left:'45%', w:130, rot:'-6deg', delay:'0.3s' },
+    ];
+    posterContainer.innerHTML = movies.slice(0,5).map((m,i) => {
+      const p = positions[i]; const poster = img.poster(m.poster_path);
+      if (!poster) return '';
+      return `<div class="poster-float" style="--rot:${p.rot}; top:${p.top}; left:${p.left}; width:${p.w}px; animation-duration:${4+i*0.5}s; animation-delay:${p.delay}">
+        <img src="${poster}" alt="${m.title}">
+      </div>`;
+    }).join('');
+
+    // Fake stats (could be real DB queries)
+    document.getElementById('statMovies').textContent  = '850K+';
+
+  } catch(e) { console.error(e); }
+
+  // Now Playing
+  try {
+    const np = await api.movies.nowPlaying();
+    document.getElementById('nowPlayingRow').innerHTML = (np.results||[]).slice(0,10).map(movieCardHtml).join('');
+  } catch(e) {}
+
+  // Top Rated
+  try {
+    const tr = await api.movies.topRated();
+    document.getElementById('topRatedGrid').innerHTML = (tr.results||[]).slice(0,6).map(movieCardHtml).join('');
+  } catch(e) {}
+
+  // Upcoming
+  try {
+    const up = await api.movies.upcoming();
+    document.getElementById('upcomingRow').innerHTML = (up.results||[]).slice(0,10).map(movieCardHtml).join('');
+  } catch(e) {}
+
+  // Community Activity
+  try {
+    const acts = await api.activity.global();
+    const actEl = document.getElementById('globalActivity');
+    if (!acts.length) { actEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🌍</div><p>No activity yet. Be the first!</p></div>'; return; }
+    actEl.innerHTML = acts.slice(0,5).map(a => activityItemHtml(a)).join('');
+  } catch(e) {}
+});
+
+function activityItemHtml(a) {
+  const typeMap = {
+    watched: { icon:'👁', label:'watched' },
+    reviewed: { icon:'✍️', label:'reviewed' },
+    liked: { icon:'❤️', label:'liked' },
+    listed: { icon:'📋', label:'added to a list' },
+    followed: { icon:'👤', label:'followed' },
+    watchlisted: { icon:'🔖', label:'added to watchlist' },
+    recommended: { icon:'✨', label:'recommended' },
+  };
+  const t = typeMap[a.type] || { icon:'★', label: a.type };
+  const movieLink = a.movieId ? `<a href="/movie-detail.html?id=${a.movieId}" style="color:var(--accent)">${a.movieTitle}</a>` : '';
+  const targetLink = a.targetUser ? `<a href="/profile.html?u=${a.targetUser.username}" style="color:var(--accent)">${a.targetUser.username}</a>` : '';
+  return `
+    <div class="activity-item">
+      <div class="activity-icon ${a.type}">${t.icon}</div>
+      ${a.posterPath ? `<img class="activity-poster" src="${img.poster(a.posterPath,'w92')}" alt="">` : ''}
+      <div style="flex:1">
+        <div class="activity-text">
+          <strong><a href="/profile.html?u=${a.user?.username}">${a.user?.username || 'Someone'}</a></strong>
+          ${t.label} ${movieLink || targetLink}
+          ${a.rating ? `— ${starsHtml(a.rating)}` : ''}
+        </div>
+        <div class="activity-time">${timeAgo(a.createdAt)}</div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>

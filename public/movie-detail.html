@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie — CineTrack</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+<header class="navbar" id="navbar"></header>
+
+<!-- MOVIE HERO -->
+<div class="movie-hero" id="movieHero">
+  <div class="movie-hero-bg" id="movieBg"></div>
+  <div class="movie-hero-overlay"></div>
+  <div class="container" style="position:relative;z-index:2;width:100%">
+    <div class="movie-hero-content" id="movieHeroContent">
+      <div class="skeleton" style="width:200px;height:300px;border-radius:var(--radius-lg)"></div>
+      <div style="flex:1">
+        <div class="skeleton" style="height:48px;width:60%;margin-bottom:12px"></div>
+        <div class="skeleton" style="height:20px;width:40%;margin-bottom:20px"></div>
+        <div class="skeleton" style="height:80px;width:100%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container" style="padding-top:40px;padding-bottom:80px">
+  <div class="movie-details-grid" id="movieDetailsGrid">
+    <div id="movieMain">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="overview">Overview</button>
+        <button class="tab-btn" data-tab="cast">Cast & Crew</button>
+        <button class="tab-btn" data-tab="reviews">Reviews <span id="reviewCount" class="badge badge-muted" style="margin-left:4px;font-size:0.72rem">0</span></button>
+        <button class="tab-btn" data-tab="similar">Similar</button>
+      </div>
+
+      <!-- Overview Tab -->
+      <div class="tab-content active" id="tab-overview">
+        <div id="movieOverview" style="margin-bottom:32px">
+          <div class="skeleton" style="height:20px;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:20px;width:80%;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:20px;width:65%"></div>
+        </div>
+        <div id="movieTrailer" style="margin-bottom:32px"></div>
+        <div id="movieFacts"></div>
+      </div>
+
+      <!-- Cast Tab -->
+      <div class="tab-content" id="tab-cast">
+        <h3 style="margin-bottom:20px; font-family:var(--font-serif)">Top Cast</h3>
+        <div class="scroll-row" id="castRow" style="margin-bottom:32px"></div>
+        <h3 style="margin-bottom:16px; font-family:var(--font-serif)">Director</h3>
+        <div id="directorInfo"></div>
+      </div>
+
+      <!-- Reviews Tab -->
+      <div class="tab-content" id="tab-reviews">
+        <div id="writeReviewSection" style="margin-bottom:32px;display:none">
+          <div class="card">
+            <h4 style="margin-bottom:16px">Write Your Review</h4>
+            <input type="hidden" id="ratingVal" value="0">
+            <div class="form-group" style="margin-bottom:14px">
+              <textarea id="reviewText" class="form-textarea" placeholder="Share your thoughts on this film… (optional)" style="min-height:100px"></textarea>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:14px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem;color:var(--text-secondary)">
+                <input type="checkbox" id="spoilerCheck" style="accent-color:var(--accent)"> Contains spoilers
+              </label>
+            </div>
+            <button class="btn btn-primary" id="submitReview">Save Review</button>
+          </div>
+        </div>
+        <div id="loginToReview" style="margin-bottom:24px;display:none">
+          <div class="card" style="text-align:center;padding:24px">
+            <p style="color:var(--text-secondary);margin-bottom:12px">Sign in to write a review</p>
+            <a href="/login.html" class="btn btn-primary btn-sm">Sign In</a>
+          </div>
+        </div>
+        <div id="reviewsList" style="display:flex;flex-direction:column;gap:14px">
+          <div class="skeleton" style="height:120px;border-radius:var(--radius-lg)"></div>
+          <div class="skeleton" style="height:120px;border-radius:var(--radius-lg)"></div>
+        </div>
+      </div>
+
+      <!-- Similar Tab -->
+      <div class="tab-content" id="tab-similar">
+        <div class="grid-4" id="similarGrid"></div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="movieSidebar">
+      <div class="sidebar-widget">
+        <div class="sidebar-widget-title">DETAILS</div>
+        <div id="movieDetailsList"></div>
+      </div>
+      <div class="sidebar-widget">
+        <div class="sidebar-widget-title">WHERE TO WATCH</div>
+        <p style="font-size:0.85rem;color:var(--text-muted)">Check JustWatch for streaming availability in your region.</p>
+        <a id="justwatchLink" href="#" target="_blank" class="btn btn-outline btn-sm" style="margin-top:12px;width:100%">Find on JustWatch ↗</a>
+      </div>
+      <div class="sidebar-widget" id="sendRecWidget" style="display:none">
+        <div class="sidebar-widget-title">CLASSIC RECOMMENDATION</div>
+        <div class="form-group">
+          <input type="text" id="recSearchUser" class="form-input" placeholder="Search username…">
+          <div id="recUserResults" style="margin-top:8px"></div>
+        </div>
+        <div class="form-group">
+          <textarea id="recMessage" class="form-textarea" placeholder="Why should they watch this?" style="min-height:70px"></textarea>
+        </div>
+        <button class="btn btn-primary btn-sm" id="sendRecBtn" style="width:100%">Send via Inbox</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div id="shareModal" class="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-elevated);padding:24px;border-radius:var(--radius);width:100%;max-width:400px;border:1px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0">Share Movie</h3>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('shareModal').style.display='none'" style="border:none;background:transparent;font-size:1.2rem">✕</button>
+    </div>
+    
+    <div class="page-tabs" style="margin-bottom:16px">
+      <button class="page-tab active" id="shareFriendTab" onclick="switchShareTab('friend')">To Friend (DM)</button>
+      <button class="page-tab" id="shareGroupTab" onclick="switchShareTab('group')">To Group</button>
+    </div>
+
+    <div id="shareFriendView">
+      <div id="shareFriendsList" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;padding:8px">Loading...</div>
+    </div>
+    
+    <div id="shareGroupView" style="display:none">
+      <div id="shareGroupsList" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;padding:8px">Loading...</div>
+    </div>
+    
+    <textarea id="shareMessageText" class="form-input" placeholder="Add a message... (optional)" rows="2" style="margin-bottom:16px;resize:none;"></textarea>
+    
+    <button class="btn btn-primary" style="width:100%" onclick="executeShare()">Send</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/js/api.js"></script>
+<script>
+let movieData = null;
+let selectedRating = 0;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderNav('movies');
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { window.location.href = '/movies.html'; return; }
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'similar' && !document.getElementById('similarGrid').childElementCount) loadSimilar(id);
+    });
+  });
+
+  await loadMovie(id);
+  await loadReviews(id);
+
+  if (Auth.isLoggedIn()) {
+    document.getElementById('writeReviewSection').style.display = 'block';
+    document.getElementById('sendRecWidget').style.display = 'block';
+    initStarRating();
+    initSendRec(id);
+    
+    // Check user data for existing ratings and watch status
+    api.users.profile(Auth.getUser().username).then(myProfile => {
+      if (!myProfile) return;
+      const watchedEntry = myProfile.watched?.find(w => String(w.movieId) === String(id));
+      if (watchedEntry) {
+         document.getElementById('watchedBtn').classList.add('active');
+         document.getElementById('heroRatingSection').style.display = 'flex';
+         if (watchedEntry.rating) {
+            selectedRating = watchedEntry.rating;
+            document.getElementById('ratingVal').value = selectedRating;
+            highlightStars(selectedRating);
+         }
+      }
+      if (myProfile.liked?.find(w => String(w.movieId) === String(id))) document.getElementById('likeBtn').classList.add('active');
+      if (myProfile.watchlist?.find(w => String(w.movieId) === String(id))) document.getElementById('watchlistBtn').classList.add('active');
+    }).catch(e => console.error(e));
+  } else {
+    document.getElementById('loginToReview').style.display = 'block';
+  }
+});
+
+async function loadMovie(id) {
+  try {
+    movieData = await api.movies.detail(id);
+    document.title = `${movieData.title} — CineTrack`;
+
+    // Hero
+    if (movieData.backdrop_path) document.getElementById('movieBg').style.backgroundImage = `url(${img.backdrop(movieData.backdrop_path)})`;
+    const posterSrc = img.poster(movieData.poster_path, 'w342');
+    const genreTags = (movieData.genres||[]).map(g => `<a href="/movies.html?genre=${g.id}" class="movie-genre-tag">${g.name}</a>`).join('');
+    const runtime = movieData.runtime ? `${Math.floor(movieData.runtime/60)}h ${movieData.runtime%60}m` : '';
+    const year = movieData.release_date?.slice(0,4) || '';
+    document.getElementById('movieHeroContent').innerHTML = `
+      ${posterSrc ? `<img src="${posterSrc}" alt="${movieData.title}" class="movie-poster-main">` : '<div class="movie-poster-placeholder">🎬</div>'}
+      <div style="flex:1">
+        <div class="movie-meta-row">
+          ${year ? `<span class="badge badge-muted">${year}</span>` : ''}
+          ${runtime ? `<span class="badge badge-muted">⏱ ${runtime}</span>` : ''}
+          ${movieData.vote_average ? `<span class="badge badge-accent">★ ${(movieData.vote_average / 2).toFixed(1)} <span style="font-weight:400;opacity:0.7">(${movieData.vote_count?.toLocaleString()})</span></span>` : ''}
+        </div>
+        <h1 class="movie-title-main">${movieData.title}</h1>
+        ${movieData.tagline ? `<p class="movie-tagline">${movieData.tagline}</p>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">${genreTags}</div>
+        <div class="movie-action-bar">
+          <button class="movie-action-btn" id="watchedBtn" onclick="toggleWatched()"><span class="icon">👁</span>Watched</button>
+          <button class="movie-action-btn" id="watchlistBtn" onclick="toggleWatchlist()"><span class="icon">🔖</span>Watchlist</button>
+          <button class="movie-action-btn" id="likeBtn" onclick="toggleLike()"><span class="icon">❤️</span>Like</button>
+          <button class="movie-action-btn" onclick="showShareModal()"><span class="icon" style="filter:grayscale(1) brightness(2)">🚀</span>Share</button>
+        </div>
+        <div id="heroRatingSection" style="display:none; margin-top:20px; align-items:center; gap:16px">
+           <div style="font-size:0.9rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; font-weight:600">Your Rating</div>
+           <div id="heroStarRating" style="font-size:3.5rem; margin-top:-10px; cursor:pointer; min-width:180px"></div>
+        </div>
+      </div>`;
+
+    // Overview
+    document.getElementById('movieOverview').innerHTML = `<p class="movie-overview">${movieData.overview || 'No overview available.'}</p>`;
+
+    // Trailer
+    const trailer = (movieData.videos?.results||[]).find(v => v.type==='Trailer' && v.site==='YouTube');
+    if (trailer) {
+      document.getElementById('movieTrailer').innerHTML = `
+        <h4 style="margin-bottom:12px;font-family:var(--font-serif)">Trailer</h4>
+        <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border)">
+          <iframe src="https://www.youtube.com/embed/${trailer.key}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe>
+        </div>`;
+    }
+
+    // Facts
+    document.getElementById('movieFacts').innerHTML = `
+      <h4 style="margin-bottom:16px;font-family:var(--font-serif)">Production</h4>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        ${(movieData.production_companies||[]).slice(0,4).map(c=>`<span class="badge badge-muted">${c.name}</span>`).join('')}
+      </div>`;
+
+    // Cast
+    const cast = movieData.credits?.cast?.slice(0,12) || [];
+    document.getElementById('castRow').innerHTML = cast.map(c => `
+      <div class="cast-card" onclick="window.location.href='/person.html?id=${c.id}'" style="cursor:pointer">
+        <img class="cast-photo" src="${img.profile(c.profile_path,'w185') || 'https://via.placeholder.com/110x110/1e1e2a/5a5560?text=?'}" alt="${c.name}" loading="lazy">
+        <div class="cast-name">${c.name}</div>
+        <div class="cast-char">${c.character}</div>
+      </div>`).join('');
+
+    const director = movieData.credits?.crew?.find(c => c.job === 'Director');
+    document.getElementById('directorInfo').innerHTML = director ? `
+      <div class="flex" style="gap:12px;align-items:center;cursor:pointer" onclick="window.location.href='/person.html?id=${director.id}'">
+        <img src="${img.profile(director.profile_path,'w185') || 'https://via.placeholder.com/48x48/1e1e2a/5a5560?text=?'}" class="avatar avatar-md" alt="${director.name}">
+        <div><div style="font-weight:600">${director.name}</div><div class="text-muted text-sm">Director</div></div>
+      </div>` : '<p class="text-muted text-sm">Director info unavailable</p>';
+
+    // Sidebar details
+    const details = [
+      ['Status', movieData.status],
+      ['Release', movieData.release_date],
+      ['Runtime', runtime],
+      ['Budget', movieData.budget ? `$${movieData.budget.toLocaleString()}` : null],
+      ['Revenue', movieData.revenue ? `$${movieData.revenue.toLocaleString()}` : null],
+      ['Language', movieData.original_language?.toUpperCase()],
+      ['Country', (movieData.production_countries && movieData.production_countries.length > 0) ? movieData.production_countries.map(c => c.iso_3166_1).join(', ') : null]
+    ].filter(([,v]) => v);
+    document.getElementById('movieDetailsList').innerHTML = details.map(([k,v]) => `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
+        <span style="color:var(--text-muted)">${k}</span>
+        <span style="font-weight:500;text-align:right;max-width:55%">${v}</span>
+      </div>`).join('');
+
+    document.getElementById('justwatchLink').href = `https://www.justwatch.com/in/search?q=${encodeURIComponent(movieData.title)}`;
+
+  } catch(e) { toast('Failed to load movie: ' + e.message, 'error'); }
+}
+
+async function loadReviews(movieId) {
+  try {
+    const reviews = await api.reviews.forMovie(movieId);
+    document.getElementById('reviewCount').textContent = reviews.length;
+    const list = document.getElementById('reviewsList');
+    if (!reviews.length) { list.innerHTML = '<div class="empty-state"><div class="empty-icon">✍️</div><h3>No reviews yet</h3><p>Be the first to review this film</p></div>'; return; }
+    list.innerHTML = reviews.map(r => reviewCardHtml(r)).join('');
+  } catch(e) {}
+}
+
+function reviewCardHtml(r) {
+  const user = Auth.getUser();
+  const isLiked = user && r.likes?.includes(user._id);
+  return `
+    <div class="review-card" id="review-${r._id}">
+      <div class="review-header">
+        <img src="${r.user?.avatar || `https://ui-avatars.com/api/?name=${r.user?.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm" alt="">
+        <div style="flex:1">
+          <div class="review-user"><a href="/profile.html?u=${r.user?.username}" style="color:var(--accent)">${r.user?.username}</a></div>
+          <div class="review-date">${new Date(r.createdAt).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</div>
+        </div>
+        ${r.rating ? `<div>${starsHtml(r.rating)}</div>` : ''}
+      </div>
+      ${r.review ? `
+        <div class="review-text ${r.containsSpoilers?'spoiler-text':''}" id="rt-${r._id}">${r.containsSpoilers?'⚠️ Contains spoilers — click to reveal':r.review}</div>
+        ${r.containsSpoilers ? `<button class="review-spoiler-toggle" onclick="revealSpoiler('${r._id}','${r.review.replace(/'/g,"\\'").replace(/\n/g,'<br>')}')">Tap to reveal spoiler</button>` : ''}
+      ` : ''}
+      <div class="review-actions">
+        <button class="review-like-btn ${isLiked?'liked':''}" onclick="likeReview('${r._id}',this)">
+          ❤️ <span class="like-count">${r.likes?.length||0}</span>
+        </button>
+        <button class="btn-ghost btn-sm" style="font-size:0.82rem;color:var(--text-muted)" onclick="toggleComments('${r._id}')">💬 ${r.comments?.length||0} comments</button>
+      </div>
+      <div id="comments-${r._id}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        ${(r.comments||[]).map(c=>`<div style="display:flex;gap:10px;margin-bottom:10px"><img src="${c.user?.avatar||`https://ui-avatars.com/api/?name=${c.user?.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm"><div><div style="font-size:0.82rem;font-weight:600">${c.user?.username}</div><div style="font-size:0.88rem;color:var(--text-secondary)">${c.text}</div></div></div>`).join('')}
+        ${Auth.isLoggedIn()?`<div style="display:flex;gap:8px;margin-top:8px"><input type="text" placeholder="Add comment…" class="form-input" id="ci-${r._id}" style="flex:1;padding:8px 12px"><button class="btn btn-primary btn-sm" onclick="addComment('${r._id}')">Post</button></div>`:''}
+      </div>
+    </div>`;
+}
+
+function revealSpoiler(id, text) { const el = document.getElementById('rt-'+id); el.innerHTML = text; el.classList.remove('spoiler-text'); }
+function toggleComments(id) { const el = document.getElementById('comments-'+id); el.style.display = el.style.display==='none'?'block':'none'; }
+
+async function likeReview(reviewId, btn) {
+  if (!Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+  try {
+    const res = await api.reviews.like(reviewId);
+    btn.querySelector('.like-count').textContent = res.likes;
+    btn.classList.toggle('liked', res.liked);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function addComment(reviewId) {
+  const input = document.getElementById('ci-'+reviewId);
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    await api.reviews.comment(reviewId, text);
+    toast('Comment added!','success');
+    input.value='';
+    // Re-load reviews
+    await loadReviews(new URLSearchParams(location.search).get('id'));
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function initStarRating() {
+  const container = document.getElementById('heroStarRating');
+  if(!container) return;
+  highlightStars(selectedRating);
+  container.addEventListener('mousemove', e => {
+    const rect = container.getBoundingClientRect();
+    const x = Math.max(0, e.clientX - rect.left);
+    let val = Math.ceil((x / rect.width) * 10) / 2;
+    if (val < 0.5) val = 0.5;
+    if (val > 5) val = 5;
+    highlightStars(val);
+  });
+  container.addEventListener('mouseleave', () => highlightStars(selectedRating));
+  container.addEventListener('click', async e => {
+    const rect = container.getBoundingClientRect();
+    const x = Math.max(0, e.clientX - rect.left);
+    let val = Math.ceil((x / rect.width) * 10) / 2;
+    if (val < 0.5) val = 0.5;
+    if (val > 5) val = 5;
+    selectedRating = val;
+    document.getElementById('ratingVal').value = selectedRating;
+    highlightStars(selectedRating);
+    try {
+      await api.users.toggleWatched({ movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path, rating: selectedRating });
+      await api.reviews.save({ movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path, rating: selectedRating });
+      toast('Rating ' + selectedRating + ' saved!', 'success');
+      loadReviews(movieData.id);
+    } catch(err) { toast(err.message, 'error'); }
+  });
+}
+function highlightStars(n) {
+   const container = document.getElementById('heroStarRating');
+   if (!container) return;
+   let html = '';
+   for(let i=1; i<=5; i++) {
+     if(i <= Math.floor(n)) {
+       html += '<span style="color:var(--accent)">★</span>';
+     } else if(i - 0.5 <= n) {
+       html += '<span style="position:relative;display:inline-block;color:var(--text-muted)">★<span style="position:absolute;left:0;top:0;overflow:hidden;width:50%;color:var(--accent)">★</span></span>';
+     } else {
+       html += '<span style="color:var(--text-muted)">★</span>';
+     }
+   }
+   container.innerHTML = `<span style="display:inline-flex; gap:6px; user-select:none;">${html}</span>`;
+}
+
+document.getElementById('submitReview')?.addEventListener('click', async () => {
+  if (!movieData) return;
+  const rating = Number(document.getElementById('ratingVal').value);
+  const review = document.getElementById('reviewText').value.trim();
+  const containsSpoilers = document.getElementById('spoilerCheck').checked;
+  if (!review) { toast('Please write a review','error'); return; }
+  try {
+    const payload = { movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path, review, containsSpoilers };
+    if (rating > 0) payload.rating = rating;
+    await api.reviews.save(payload);
+    toast('Review text saved!','success');
+    await loadReviews(movieData.id);
+    document.getElementById('reviewText').value='';
+  } catch(e) { toast(e.message,'error'); }
+});
+
+async function toggleWatched() {
+  if (!Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+  try {
+    const res = await api.users.toggleWatched({ movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path });
+    document.getElementById('watchedBtn').classList.toggle('active', res.watched);
+    document.getElementById('heroRatingSection').style.display = res.watched ? 'flex' : 'none';
+    if (!res.watched) { selectedRating = 0; document.getElementById('ratingVal').value = 0; highlightStars(0); }
+    toast(res.watched ? 'Marked as watched!' : 'Removed from watched films', res.watched ? 'success' : 'info');
+  } catch(e) { toast(e.message,'error'); }
+}
+async function toggleWatchlist() {
+  if (!Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+  try {
+    await api.users.addWatchlist({ movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path });
+    document.getElementById('watchlistBtn').classList.toggle('active');
+    toast('Watchlist updated!','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+async function toggleLike() {
+  if (!Auth.isLoggedIn()) { window.location.href='/login.html'; return; }
+  try {
+    const res = await api.users.toggleLike({ movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path });
+    document.getElementById('likeBtn').classList.toggle('active', res.liked);
+    toast(res.liked ? 'Added to liked films!':'Removed from liked films', res.liked?'success':'info');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function loadSimilar(id) {
+  try {
+    const data = await api.movies.similar(id);
+    document.getElementById('similarGrid').innerHTML = (data.results||[]).slice(0,8).map(movieCardHtml).join('');
+  } catch(e) {}
+}
+
+function initSendRec(movieId) {
+  let selectedUser = null;
+  const input = document.getElementById('recSearchUser'), results = document.getElementById('recUserResults');
+  let timer;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      if (input.value.length < 2) { results.innerHTML=''; return; }
+      const users = await api.users.search(input.value);
+      results.innerHTML = users.map(u => `
+        <div class="search-result-item" onclick="selectRecUser('${u._id}','${u.username}',this)" style="cursor:pointer;padding:8px;border-radius:var(--radius-sm);background:var(--bg-elevated);margin-bottom:4px">
+          <img src="${u.avatar||`https://ui-avatars.com/api/?name=${u.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm"><span>${u.username}</span>
+        </div>`).join('');
+    }, 400);
+  });
+  window.selectRecUser = (id, username, el) => {
+    selectedUser = id; input.value = username; results.innerHTML = '';
+    toast(`Selected ${username}`, 'info');
+  };
+  document.getElementById('sendRecBtn').addEventListener('click', async () => {
+    if (!selectedUser || !movieData) { toast('Select a user first','error'); return; }
+    const message = document.getElementById('recMessage').value;
+    try {
+      await api.recs.send({ toUserId: selectedUser, movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path, message });
+      toast('Recommendation sent!','success');
+      document.getElementById('recMessage').value=''; input.value=''; selectedUser=null;
+    } catch(e) { toast(e.message,'error'); }
+  });
+}
+
+let shareTargetType = 'friend';
+
+async function showShareModal() {
+  if (!Auth.isLoggedIn()) return window.location.href='/login.html';
+  document.getElementById('shareModal').style.display='flex';
+  document.getElementById('shareMessageText').value = '';
+  switchShareTab('friend');
+  
+  try {
+    const [friends, groupsData] = await Promise.all([
+      api.messages.friends(),
+      api.groups.list()
+    ]);
+    
+    const fList = document.getElementById('shareFriendsList');
+    if (!friends.length) { fList.innerHTML = '<div class="text-muted text-sm">No friends available to share with. Follow users first!</div>'; }
+    else {
+      fList.innerHTML = friends.map(f => `
+        <label class="share-option" style="padding:6px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='transparent'">
+          <input type="checkbox" class="share-friend-check" value="${f._id}">
+          <img src="${f.avatar||`https://ui-avatars.com/api/?name=${f.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
+          <span>${f.username}</span>
+        </label>
+      `).join('');
+    }
+
+    const gList = document.getElementById('shareGroupsList');
+    const groups = groupsData.myGroups;
+    if (!groups.length) { gList.innerHTML = '<div class="text-muted text-sm">You have not joined any groups.</div>'; }
+    else {
+      gList.innerHTML = groups.map(g => `
+        <label class="share-option" style="padding:8px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='transparent'">
+          <input type="checkbox" class="share-group-check" value="${g._id}">
+          <span style="font-size:1.4rem;line-height:1">🏘️</span>
+          <span style="font-weight:500">${g.name}</span>
+        </label>
+      `).join('');
+    }
+  } catch(e) {}
+}
+
+function switchShareTab(type) {
+  shareTargetType = type;
+  document.getElementById('shareFriendTab').classList.toggle('active', type==='friend');
+  document.getElementById('shareGroupTab').classList.toggle('active', type==='group');
+  document.getElementById('shareFriendView').style.display = type==='friend'?'block':'none';
+  document.getElementById('shareGroupView').style.display = type==='group'?'block':'none';
+}
+
+async function executeShare() {
+  const friendChecks = Array.from(document.querySelectorAll('.share-friend-check:checked')).map(cb => cb.value);
+  const groupChecks = Array.from(document.querySelectorAll('.share-group-check:checked')).map(cb => cb.value);
+  
+  if (friendChecks.length === 0 && groupChecks.length === 0) {
+    return toast('Please select at least one friend or group.', 'error');
+  }
+
+  const txt = document.getElementById('shareMessageText').value.trim();
+  const btn = event.target;
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = 'Sending...';
+  btn.disabled = true;
+  
+  try {
+    const promises = [];
+    
+    // Dispatch to Friends
+    for (const fId of friendChecks) {
+      promises.push(api.messages.send({ receiverId: fId, content: txt, movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path }));
+    }
+    
+    // Dispatch to Groups
+    for (const gId of groupChecks) {
+      promises.push(api.groups.post(gId, { content: txt, movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path }));
+    }
+    
+    await Promise.all(promises);
+    
+    document.getElementById('shareModal').style.display='none';
+    toast('Shared successfully!', 'success');
+    
+    // Cleanup checkboxes
+    document.querySelectorAll('.share-friend-check, .share-group-check').forEach(cb => cb.checked = false);
+    
+  } catch(e) { 
+    toast(e.message, 'error'); 
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
