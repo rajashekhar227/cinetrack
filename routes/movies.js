@@ -27,7 +27,7 @@ const tmdb = async (path, params = {}) => {
   const movies = Array.from(movieMap.values());
   if (movies.length > 0) {
     try {
-      const movieIds = movies.map(m => String(m.id));
+      const movieIds = movies.map(m => Number(m.id)); // <-- FIXED: Cast to Number!
       const aggregations = await Review.aggregate([
         { $match: { movieId: { $in: movieIds }, rating: { $exists: true, $gt: 0 } } },
         { $group: { _id: "$movieId", sum: { $sum: "$rating" }, count: { $sum: 1 } } }
@@ -39,9 +39,11 @@ const tmdb = async (path, params = {}) => {
         const stat = localStats[String(m.id)];
         if (stat) {
           const tmdbScore5 = (m.vote_average || 0) / 2;
-          const TMDB_WEIGHT = 100000;
-          const combinedScore5 = ((tmdbScore5 * TMDB_WEIGHT) + stat.sum) / (TMDB_WEIGHT + stat.count);
+          const tmdbVotes = m.vote_count || 0;
+          const totalVotes = tmdbVotes + stat.count;
+          const combinedScore5 = totalVotes > 0 ? ((tmdbScore5 * tmdbVotes) + stat.sum) / totalVotes : 0;
           m.vote_average = combinedScore5 * 2; // Inflate back to 10 for standard
+          m.vote_count = totalVotes;
         }
       });
     } catch(err) {

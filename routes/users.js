@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Review = require('../models/Review');
 const Activity = require('../models/Activity');
 const { protect, optionalAuth } = require('../middleware/auth');
 
@@ -102,6 +103,7 @@ router.post('/watched/toggle', protect, async (req, res) => {
       user.watched.splice(existingIdx, 1);
       user.stats.totalWatched = Math.max(0, user.stats.totalWatched - 1);
       await user.save();
+      await Review.findOneAndDelete({ user: req.user._id, movieId: Number(movieId) });
       return res.json({ watched: false });
     } else {
       user.watched.push({ movieId, movieTitle, posterPath });

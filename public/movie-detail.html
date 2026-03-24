@@ -214,7 +214,7 @@ async function loadMovie(id) {
         <div class="movie-meta-row">
           ${year ? `<span class="badge badge-muted">${year}</span>` : ''}
           ${runtime ? `<span class="badge badge-muted">⏱ ${runtime}</span>` : ''}
-          ${movieData.vote_average ? `<span class="badge badge-accent">★ ${(movieData.vote_average / 2).toFixed(1)} <span style="font-weight:400;opacity:0.7">(${movieData.vote_count?.toLocaleString()})</span></span>` : ''}
+          ${movieData.vote_average ? `<span class="badge badge-accent" id="mainRatingBadge">★ ${(movieData.vote_average / 2).toFixed(1)} <span style="font-weight:400;opacity:0.7">(${movieData.vote_count?.toLocaleString()})</span></span>` : ''}
         </div>
         <h1 class="movie-title-main">${movieData.title}</h1>
         ${movieData.tagline ? `<p class="movie-tagline">${movieData.tagline}</p>` : ''}
@@ -380,6 +380,10 @@ function initStarRating() {
       await api.reviews.save({ movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path, rating: selectedRating });
       toast('Rating ' + selectedRating + ' saved!', 'success');
       loadReviews(movieData.id);
+      api.movies.detail(movieData.id).then(upd => {
+        const badge = document.getElementById('mainRatingBadge');
+        if(badge && upd.vote_average) badge.innerHTML = `★ ${(upd.vote_average / 2).toFixed(1)} <span style="font-weight:400;opacity:0.7">(${upd.vote_count?.toLocaleString()})</span>`;
+      });
     } catch(err) { toast(err.message, 'error'); }
   });
 }
@@ -411,6 +415,10 @@ document.getElementById('submitReview')?.addEventListener('click', async () => {
     await api.reviews.save(payload);
     toast('Review text saved!','success');
     await loadReviews(movieData.id);
+    api.movies.detail(movieData.id).then(upd => {
+      const badge = document.getElementById('mainRatingBadge');
+      if(badge && upd.vote_average) badge.innerHTML = `★ ${(upd.vote_average / 2).toFixed(1)} <span style="font-weight:400;opacity:0.7">(${upd.vote_count?.toLocaleString()})</span>`;
+    });
     document.getElementById('reviewText').value='';
   } catch(e) { toast(e.message,'error'); }
 });
@@ -421,7 +429,14 @@ async function toggleWatched() {
     const res = await api.users.toggleWatched({ movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path });
     document.getElementById('watchedBtn').classList.toggle('active', res.watched);
     document.getElementById('heroRatingSection').style.display = res.watched ? 'flex' : 'none';
-    if (!res.watched) { selectedRating = 0; document.getElementById('ratingVal').value = 0; highlightStars(0); }
+    if (!res.watched) { 
+      selectedRating = 0; document.getElementById('ratingVal').value = 0; highlightStars(0); 
+      api.movies.detail(movieData.id).then(upd => {
+        const badge = document.getElementById('mainRatingBadge');
+        if(badge && upd.vote_average) badge.innerHTML = `★ ${(upd.vote_average / 2).toFixed(1)} <span style="font-weight:400;opacity:0.7">(${upd.vote_count?.toLocaleString()})</span>`;
+      });
+      loadReviews(movieData.id);
+    }
     toast(res.watched ? 'Marked as watched!' : 'Removed from watched films', res.watched ? 'success' : 'info');
   } catch(e) { toast(e.message,'error'); }
 }
