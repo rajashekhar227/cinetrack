@@ -59,6 +59,8 @@ const api = {
     updateProfile: (d) => api.put('/auth/profile', d),
     googleClientId: () => api.get('/auth/google-client-id'),
     google:   (d) => api.post('/auth/google', d),
+    verify:   (d) => api.post('/auth/verify', d),
+    resend:   (d) => api.post('/auth/resend', d),
   },
 
   // Movies (TMDB proxy)
@@ -200,13 +202,17 @@ function renderNav(activePage = '') {
   if (!navEl) return;
   navEl.innerHTML = `
     <div class="nav-inner">
-      <a href="/" class="nav-logo">CINE<span>TRACK</span></a>
+      <a href="/" class="nav-logo">
+        <img src="/img/logo.png" alt="CineTrack Logo" style="height:32px;width:auto;object-fit:contain">
+        CINE<span>TRACK</span>
+      </a>
       <div class="nav-search">
         <span class="nav-search-icon">🔍</span>
         <input type="text" id="navSearchInput" placeholder="Search movies..." autocomplete="off">
         <div class="search-dropdown" id="searchDropdown"></div>
       </div>
       <nav class="nav-links">
+        <img src="/img/logo.png" alt="" style="height: 20px; margin-right: 10px; opacity: 0.7; filter: drop-shadow(0 0 5px rgba(245,166,35,0.2))">
         <a href="/" class="nav-link ${activePage==='home'?'active':''}"><span>🏠</span><span>Home</span></a>
         <a href="/movies.html" class="nav-link ${activePage==='movies'?'active':''}"><span>🎬</span><span>Movies</span></a>
         <a href="/community.html" class="nav-link ${activePage==='community'?'active':''}"><span>👥</span><span>Community</span></a>

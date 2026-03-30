@@ -28,6 +28,20 @@
       <button class="btn btn-primary" id="loginBtn" style="margin-top:8px; width:100%">Sign In</button>
       <div id="googleAuthContainer" style="margin-top: 8px; display: flex; justify-content: center;"></div>
     </div>
+
+    <!-- OTP Verification Form (Hidden by default) -->
+    <div id="otpSection" style="display:none; flex-direction:column; gap:16px">
+      <div class="logo-sub" style="margin-bottom:16px; color:var(--accent)">Verify your email</div>
+      <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:8px">Please enter the 6-digit code sent to <b id="displayEmail"></b></p>
+      <div class="form-group">
+        <label class="form-label">Verification Code</label>
+        <input type="text" id="otpCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:8px">
+      </div>
+      <button class="btn btn-primary" id="verifyBtn" style="width:100%">Verify Account</button>
+      <div style="text-align:center; font-size:0.85rem; margin-top:8px">
+        Didn't receive code? <a href="#" id="resendBtn" style="color:var(--accent)">Resend</a>
+      </div>
+    </div>
     <div class="auth-switch">
       Don't have an account? <a href="/register.html">Sign up free</a>
     </div>
@@ -43,6 +57,11 @@
     const errEl = document.getElementById('authError');
     const btn = document.getElementById('loginBtn');
     if (!email || !password) { errEl.textContent = 'Please fill all fields'; errEl.style.display='block'; return; }
+    if (!email.toLowerCase().endsWith('@gmail.com')) {
+      errEl.textContent = 'Please login using your official Google Mail (@gmail.com)';
+      errEl.style.display = 'block';
+      return;
+    }
     btn.textContent = 'Signing in…'; btn.disabled = true;
     try {
       const data = await api.auth.login({ email, password });
@@ -50,9 +69,61 @@
       toast('Welcome back!', 'success');
       setTimeout(() => window.location.href = '/', 500);
     } catch(e) {
-      errEl.textContent = e.message; errEl.style.display = 'block';
+      if (e.message.includes('not verified') || e.message.includes('verify your email')) {
+        document.querySelector('.auth-card > div:nth-child(3)').style.display = 'none';
+        document.getElementById('otpSection').style.display = 'flex';
+        document.getElementById('displayEmail').textContent = email;
+        document.querySelector('.logo-sub').textContent = 'Verification Required';
+      } else {
+        errEl.textContent = e.message; errEl.style.display = 'block';
+      }
       btn.textContent = 'Sign In'; btn.disabled = false;
     }
+  });
+
+  // Verify OTP Logic
+  document.getElementById('verifyBtn').addEventListener('click', async () => {
+    const email = document.getElementById('displayEmail').textContent;
+    const code = document.getElementById('otpCode').value.trim();
+    const errEl = document.getElementById('authError');
+    const btn = document.getElementById('verifyBtn');
+
+    if (!code || code.length !== 6) {
+      errEl.textContent = 'Please enter the 6-digit code';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.textContent = 'Verifying…';
+    btn.disabled = true;
+
+    try {
+      const data = await api.auth.verify({ email, code });
+      Auth.setAuth(data);
+      toast('Account verified!', 'success');
+      setTimeout(() => window.location.href = '/', 500);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+      btn.textContent = 'Verify Account';
+      btn.disabled = false;
+    }
+  });
+
+  // Resend OTP Logic
+  document.getElementById('resendBtn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('displayEmail').textContent;
+    try {
+      await api.auth.resend({ email });
+      toast('New code sent!', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
+
+  document.getElementById('otpCode').addEventListener('keydown', e => {
+    if(e.key==='Enter') document.getElementById('verifyBtn').click();
   });
   document.getElementById('password').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginBtn').click(); });
 

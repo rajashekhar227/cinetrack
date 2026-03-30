@@ -7,9 +7,11 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
 const KEY = process.env.TMDB_API_KEY;
 
 const tmdb = async (path, params = {}) => {
-  const res = await axios.get(`${TMDB_BASE}${path}`, {
-    params: { api_key: KEY, ...params }
-  });
+  console.log(`✉️ TMDB Request: ${path}`, params);
+  try {
+    const res = await axios.get(`${TMDB_BASE}${path}`, {
+      params: { api_key: KEY, ...params }
+    });
   
   const data = res.data;
   
@@ -52,6 +54,10 @@ const tmdb = async (path, params = {}) => {
   }
 
   return data;
+  } catch (err) {
+    console.error(`❌ TMDB Error for ${path}:`, err.message);
+    throw err;
+  }
 };
 
 router.get('/trending',        async (req, res) => { try { res.json(await tmdb('/trending/movie/week', { page: req.query.page||1 })); } catch(e){ res.status(500).json({message:e.message}); }});
@@ -59,7 +65,15 @@ router.get('/popular',         async (req, res) => { try { res.json(await tmdb('
 router.get('/top-rated',       async (req, res) => { try { res.json(await tmdb('/movie/top_rated', { page: req.query.page||1 })); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/now-playing',     async (req, res) => { try { res.json(await tmdb('/movie/now_playing', { page: req.query.page||1 })); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/upcoming',        async (req, res) => { try { res.json(await tmdb('/movie/upcoming', { page: req.query.page||1 })); } catch(e){ res.status(500).json({message:e.message}); }});
-router.get('/search',          async (req, res) => { try { res.json(await tmdb('/search/multi', { query: req.query.q, page: req.query.page||1 })); } catch(e){ res.status(500).json({message:e.message}); }});
+router.get('/search',          async (req, res) => { 
+  try { 
+    console.log('🔍 Search Query:', req.query.q);
+    res.json(await tmdb('/search/movie', { query: req.query.q, page: req.query.page||1 })); 
+  } catch(e){ 
+    console.error('❌ Search Error:', e.message);
+    res.status(500).json({message:e.message}); 
+  }
+});
 router.get('/genres',          async (req, res) => { try { res.json(await tmdb('/genre/movie/list')); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/by-genre/:id',    async (req, res) => { try { res.json(await tmdb('/discover/movie', { with_genres: req.params.id, sort_by: 'popularity.desc', page: req.query.page||1 })); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/:id',             async (req, res) => { try { res.json(await tmdb(`/movie/${req.params.id}`, { append_to_response: 'credits,videos,similar,recommendations,images' })); } catch(e){ res.status(500).json({message:e.message}); }});

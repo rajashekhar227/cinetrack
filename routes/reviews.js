@@ -19,26 +19,40 @@ router.get('/movie/:movieId', optionalAuth, async (req, res) => {
 // POST create/update review
 router.post('/', protect, async (req, res) => {
   try {
-    const { movieId, movieTitle, posterPath, rating, review, containsSpoilers, watchedOn } = req.body;
-    let existing = await Review.findOne({ user: req.user._id, movieId });
-    if (existing) {
-      existing.rating = rating; existing.review = review;
-      existing.containsSpoilers = containsSpoilers; existing.watchedOn = watchedOn;
-      await existing.save();
-      return res.json(existing);
+    const { movieId, movieTitle, posterPath, rating, review, containsSpoilers, watchedOn, shouldMarkWatched } = req.body;
+    
+    let reviewDoc = await Review.findOne({ user: req.user._id, movieId });
+    const isNewReview = !reviewDoc;
+
+    if (reviewDoc) {
+      reviewDoc.rating = rating; 
+      reviewDoc.review = review;
+      reviewDoc.containsSpoilers = containsSpoilers; 
+      reviewDoc.watchedOn = watchedOn;
+      await reviewDoc.save();
+    } else {
+      reviewDoc = await Review.create({ user: req.user._id, movieId, movieTitle, posterPath, rating, review, containsSpoilers, watchedOn });
     }
-    const newReview = await Review.create({ user: req.user._id, movieId, movieTitle, posterPath, rating, review, containsSpoilers, watchedOn });
-    // Add to watched
+
+    // Handle watched list logic
     const user = await User.findById(req.user._id);
-    const alreadyWatched = user.watched.find(w => w.movieId === Number(movieId));
-    if (!alreadyWatched) {
-      user.watched.push({ movieId, movieTitle, posterPath, rating });
+    const watchedEntry = user.watched.find(w => String(w.movieId) === String(movieId));
+    
+    if (shouldMarkWatched && !watchedEntry) {
+      user.watched.push({ movieId, movieTitle, posterPath, rating: rating || 0 });
       user.stats.totalWatched++;
+    } else if (watchedEntry && rating !== undefined) {
+      // If already watched, update the rating if provided
+      watchedEntry.rating = rating;
     }
-    user.stats.totalReviews++;
+
+    if (isNewReview) {
+      user.stats.totalReviews++;
+      await Activity.create({ user: req.user._id, type: 'reviewed', movieId, movieTitle, posterPath, rating, reviewId: reviewDoc._id });
+    }
+
     await user.save();
-    await Activity.create({ user: req.user._id, type: 'reviewed', movieId, movieTitle, posterPath, rating, reviewId: newReview._id });
-    res.status(201).json(newReview);
+    res.status(isNewReview ? 201 : 200).json(reviewDoc);
   } catch(e){ res.status(500).json({message:e.message}); }
 });
 

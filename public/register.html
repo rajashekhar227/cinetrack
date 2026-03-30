@@ -32,6 +32,20 @@
       <button class="btn btn-primary" id="registerBtn" style="margin-top:8px; width:100%">Sign Up</button>
       <div id="googleAuthContainer" style="margin-top: 8px; display: flex; justify-content: center;"></div>
     </div>
+
+    <!-- OTP Verification Form (Hidden by default) -->
+    <div id="otpSection" style="display:none; flex-direction:column; gap:16px">
+      <div class="logo-sub" style="margin-bottom:16px; color:var(--accent)">Verify your email</div>
+      <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:8px">We've sent a 6-digit code to <b id="displayEmail"></b></p>
+      <div class="form-group">
+        <label class="form-label">Verification Code</label>
+        <input type="text" id="otpCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:8px">
+      </div>
+      <button class="btn btn-primary" id="verifyBtn" style="width:100%">Verify Account</button>
+      <div style="text-align:center; font-size:0.85rem; margin-top:8px">
+        Didn't receive code? <a href="#" id="resendBtn" style="color:var(--accent)">Resend</a>
+      </div>
+    </div>
     <div class="auth-switch">
       Already have an account? <a href="/login.html">Sign in</a>
     </div>
@@ -54,14 +68,29 @@
       return; 
     }
     
+    if (!email.toLowerCase().endsWith('@gmail.com')) {
+      errEl.textContent = 'Please use an official Google Mail (@gmail.com) address';
+      errEl.style.display = 'block';
+      return;
+    }
+    
     btn.textContent = 'Signing up…'; 
     btn.disabled = true;
     
     try {
       const data = await api.auth.register({ username, email, password });
-      Auth.setAuth(data);
-      toast('Welcome to CineTrack!', 'success');
-      setTimeout(() => window.location.href = '/', 500);
+      
+      if (data.unverified) {
+        document.querySelector('.auth-card > div:nth-child(3)').style.display = 'none';
+        document.getElementById('otpSection').style.display = 'flex';
+        document.getElementById('displayEmail').textContent = email;
+        document.querySelector('.logo-sub').textContent = 'Almost there…';
+        toast('Verification code sent!', 'info');
+      } else {
+        Auth.setAuth(data);
+        toast('Welcome to CineTrack!', 'success');
+        setTimeout(() => window.location.href = '/', 500);
+      }
     } catch(e) {
       errEl.textContent = e.message; 
       errEl.style.display = 'block';
@@ -69,9 +98,54 @@
       btn.disabled = false;
     }
   });
+
+  // Verify OTP Logic
+  document.getElementById('verifyBtn').addEventListener('click', async () => {
+    const email = document.getElementById('displayEmail').textContent;
+    const code = document.getElementById('otpCode').value.trim();
+    const errEl = document.getElementById('authError');
+    const btn = document.getElementById('verifyBtn');
+
+    if (!code || code.length !== 6) {
+      errEl.textContent = 'Please enter the 6-digit code';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.textContent = 'Verifying…';
+    btn.disabled = true;
+
+    try {
+      const data = await api.auth.verify({ email, code });
+      Auth.setAuth(data);
+      toast('Account verified!', 'success');
+      setTimeout(() => window.location.href = '/', 500);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+      btn.textContent = 'Verify Account';
+      btn.disabled = false;
+    }
+  });
+
+  // Resend OTP Logic
+  document.getElementById('resendBtn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('displayEmail').textContent;
+    try {
+      await api.auth.resend({ email });
+      toast('New code sent!', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
   
   document.getElementById('password').addEventListener('keydown', e => { 
     if(e.key==='Enter') document.getElementById('registerBtn').click(); 
+  });
+
+  document.getElementById('otpCode').addEventListener('keydown', e => {
+    if(e.key==='Enter') document.getElementById('verifyBtn').click();
   });
 
   // Initialize Google Auth

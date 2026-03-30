@@ -238,25 +238,36 @@ function initCreateList() {
 
 function initAddMovie() {
   const input = document.getElementById('addMovieSearch'), results = document.getElementById('addMovieResults');
-  let timer, selMovie = null;
+  let timer;
   input?.addEventListener('input', () => {
     clearTimeout(timer);
-    if (!input.value.trim()) { results.innerHTML=''; return; }
+    const query = input.value.trim();
+    if (!query) { results.innerHTML=''; return; }
     timer = setTimeout(async () => {
-      const data = await api.movies.search(input.value);
-      results.innerHTML = (data.results||[]).slice(0,5).map(m=>`
-        <div class="search-result-item" onclick="selectMovieForList(${m.id},'${m.title.replace(/'/g,"\\'")}','${m.poster_path||''}',this)" style="cursor:pointer">
-          ${img.poster(m.poster_path,'w92')?`<img src="${img.poster(m.poster_path,'w92')}" style="width:32px;height:48px;object-fit:cover;border-radius:3px">`:''} <div class="search-result-info"><div class="search-result-title">${m.title}</div><div class="search-result-year">${m.release_date?.slice(0,4)||''}</div></div>
-        </div>`).join('');
-    }, 400);
+      try {
+        const data = await api.movies.search(query);
+        const movies = (data.results||[]).slice(0,5);
+        if (!movies.length) { results.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:0.85rem">No movies found. Try another search.</div>'; return; }
+        results.innerHTML = movies.map(m=>`
+          <div class="search-result-item" onclick="selectMovieForList(${m.id},'${m.title.replace(/'/g,"\\'").replace(/"/g,"&quot;")}','${m.poster_path||''}')" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:8px;border-radius:var(--radius-sm);transition:background 0.2s" onmouseover="this.style.background='var(--bg-elevated)'" onmouseout="this.style.background='transparent'">
+            ${img.poster(m.poster_path,'w92')?`<img src="${img.poster(m.poster_path,'w92')}" style="width:34px;height:50px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:34px;height:50px;background:var(--bg-elevated);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🎬</div>'}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.title}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted)">${m.release_date?.slice(0,4)||'TBA'}</div>
+            </div>
+          </div>`).join('');
+      } catch(e) { results.innerHTML = `<div style="padding:12px;color:var(--red);font-size:0.8rem">Search failed: ${e.message}</div>`; }
+    }, 350);
   });
-  window.selectMovieForList = (id, title, poster, el) => {
+
+  window.selectMovieForList = (id, title, poster) => {
     selectedMovieForList = {id, title, poster};
     document.getElementById('selMoviePoster').src = img.poster(poster,'w92')||'';
     document.getElementById('selMovieTitle').textContent = title;
     document.getElementById('selectedMoviePreview').style.display='flex';
     results.innerHTML=''; input.value=title;
   };
+
   document.getElementById('doAddMovie')?.addEventListener('click', async () => {
     if (!selectedMovieForList || !currentListId) { toast('Select a movie first','error'); return; }
     try {

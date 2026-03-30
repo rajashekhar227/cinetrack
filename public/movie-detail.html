@@ -222,6 +222,7 @@ async function loadMovie(id) {
         <div class="movie-action-bar">
           <button class="movie-action-btn" id="watchedBtn" onclick="toggleWatched()"><span class="icon">👁</span>Watched</button>
           <button class="movie-action-btn" id="watchlistBtn" onclick="toggleWatchlist()"><span class="icon">🔖</span>Watchlist</button>
+          <button class="movie-action-btn" onclick="showAddToListModal()"><span class="icon">📋</span>Add to List</button>
           <button class="movie-action-btn" id="likeBtn" onclick="toggleLike()"><span class="icon">❤️</span>Like</button>
           <button class="movie-action-btn" onclick="showShareModal()"><span class="icon" style="filter:grayscale(1) brightness(2)">🚀</span>Share</button>
         </div>
@@ -585,6 +586,68 @@ async function executeShare() {
     btn.disabled = false;
   }
 }
+
+async function showAddToListModal() {
+  if (!Auth.isLoggedIn()) return window.location.href='/login.html';
+  const modal = document.getElementById('addToListModal');
+  modal.style.display = 'flex';
+  const container = document.getElementById('userListsContainer');
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Loading your lists...</div>';
+  
+  try {
+    const lists = await api.lists.forUser(Auth.getUser()._id);
+    if (!lists.length) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;"><p style="color:var(--text-secondary);margin-bottom:12px">You haven\'t created any lists yet.</p><a href="/lists.html" class="btn btn-primary btn-sm">Create a List</a></div>';
+      document.getElementById('confirmAddToList').disabled = true;
+      return;
+    }
+    
+    document.getElementById('confirmAddToList').disabled = false;
+    container.innerHTML = lists.map(l => `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='var(--bg-elevated)'" onmouseout="this.style.background='transparent'">
+        <input type="radio" name="atlList" value="${l._id}" style="accent-color:var(--accent)">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:0.9rem">${l.title}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">${l.movies.length} films</div>
+        </div>
+      </label>
+    `).join('');
+    
+    document.getElementById('confirmAddToList').onclick = async () => {
+      const selected = document.querySelector('input[name="atlList"]:checked');
+      if (!selected) return toast('Please select a list', 'error');
+      const listId = selected.value;
+      const note = document.getElementById('atlNote').value.trim();
+      
+      try {
+        await api.lists.addMovie(listId, { movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path, note });
+        toast('Movie added to list!', 'success');
+        modal.style.display = 'none';
+        document.getElementById('atlNote').value = '';
+      } catch(e) { toast(e.message, 'error'); }
+    };
+  } catch(e) { 
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red)">Failed to load lists: ${e.message}</div>`;
+  }
+}
 </script>
+
+<!-- Add to List Modal (Moved to end for stability) -->
+<div id="addToListModal" class="modal-overlay" style="display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div class="modal" style="max-width:400px;width:100%;background:var(--bg-elevated);padding:24px;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-lg);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-family:var(--font-serif)">Add to List</h3>
+      <button class="modal-close" onclick="document.getElementById('addToListModal').style.display='none'" style="border:none;background:transparent;font-size:1.5rem;cursor:pointer;color:var(--text-muted);">&times;</button>
+    </div>
+    <div id="userListsContainer" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px;padding:4px;display:flex;flex-direction:column;gap:4px;">
+      <!-- Lists will be loaded here -->
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label class="form-label" style="font-size:0.8rem;margin-bottom:4px;display:block;color:var(--text-secondary)">Note (Optional)</label>
+      <input type="text" id="atlNote" class="form-input" placeholder="Add a quick note..." style="width:100%">
+    </div>
+    <button class="btn btn-primary" style="width:100%" id="confirmAddToList">Add Movie</button>
+  </div>
+</div>
 </body>
 </html>
