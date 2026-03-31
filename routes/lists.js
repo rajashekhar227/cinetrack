@@ -23,12 +23,23 @@ router.get('/user/:userId', optionalAuth, async (req, res) => {
 
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const list = await List.findById(req.params.id).populate('user','username avatar bio');
-    if (!list) return res.status(404).json({message:'List not found'});
-    if (!list.isPublic && (!req.user || req.user._id.toString() !== list.user._id.toString()))
-      return res.status(403).json({message:'Private list'});
+    // Guard against invalid ObjectId format
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(404).json({ message: 'List not found' });
+    }
+    const list = await List.findById(req.params.id).populate('user', 'username avatar bio');
+    if (!list) return res.status(404).json({ message: 'List not found' });
+    // Allow access if: list is public OR the viewer is the owner
+    const viewerId = req.user ? req.user._id.toString() : null;
+    const ownerId  = list.user._id.toString();
+    if (!list.isPublic && viewerId !== ownerId) {
+      return res.status(403).json({ message: 'This list is private' });
+    }
     res.json(list);
-  } catch(e){ res.status(500).json({message:e.message}); }
+  } catch (e) {
+    if (e.name === 'CastError') return res.status(404).json({ message: 'List not found' });
+    res.status(500).json({ message: e.message });
+  }
 });
 
 router.post('/', protect, async (req, res) => {

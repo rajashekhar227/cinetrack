@@ -145,8 +145,13 @@ async function loadListDetail(listId) {
   try {
     const list = await api.lists.detail(listId);
     currentListId = listId;
-    const isOwner = myUser && myUser._id === list.user._id.toString();
+    const isOwner = myUser && list.user && myUser._id === list.user._id.toString();
     document.title = `${list.title} — CineTrack`;
+
+    const listUser    = list.user || {};
+    const listUsername = listUser.username || 'Deleted User';
+    const listAvatar   = listUser.avatar   || `https://ui-avatars.com/api/?name=${encodeURIComponent(listUsername)}&background=1e1e2a&color=f5a623&bold=true`;
+    const listProfileUrl = listUser.username ? `/profile.html?u=${listUser.username}` : '#';
 
     document.getElementById('listDetailHeader').innerHTML = `
       <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -158,13 +163,13 @@ async function loadListDetail(listId) {
           </div>
           ${list.description?`<p style="color:var(--text-secondary);margin-bottom:12px">${list.description}</p>`:''}
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-            <a href="/profile.html?u=${list.user.username}" style="display:flex;align-items:center;gap:8px">
-              <img src="${list.user.avatar||`https://ui-avatars.com/api/?name=${list.user.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
-              <span style="font-size:0.9rem;color:var(--text-secondary)">${list.user.username}</span>
+            <a href="${listProfileUrl}" style="display:flex;align-items:center;gap:8px">
+              <img src="${listAvatar}" class="avatar avatar-sm">
+              <span style="font-size:0.9rem;color:var(--text-secondary)">${listUsername}</span>
             </a>
             <span class="text-muted text-sm">${list.movies.length} films</span>
             <button class="btn btn-outline btn-sm" onclick="likeList('${list._id}',this)">❤️ ${list.likes?.length||0}</button>
-            <a href="/movies.html" class="btn btn-ghost btn-sm">← Back to Lists</a>
+            <a href="/lists.html" class="btn btn-ghost btn-sm">← Back to Lists</a>
           </div>
         </div>
         ${isOwner?`<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="document.getElementById('addMovieModal').classList.add('open')">+ Add Movie</button><button class="btn btn-danger btn-sm" onclick="deleteList('${list._id}')">Delete List</button></div>`:''}
