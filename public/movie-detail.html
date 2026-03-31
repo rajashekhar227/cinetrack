@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Movie — CineTrack</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/pages.css">
 </head>
@@ -119,15 +120,15 @@
 </div>
 
 <!-- Share Modal -->
-<div id="shareModal" class="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
-  <div style="background:var(--bg-elevated);padding:24px;border-radius:var(--radius);width:100%;max-width:400px;border:1px solid var(--border)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h3 style="margin:0">Share Movie</h3>
-      <button class="btn btn-outline btn-sm" onclick="document.getElementById('shareModal').style.display='none'" style="border:none;background:transparent;font-size:1.2rem">✕</button>
+<div id="shareModal" class="modal-overlay">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="closeModal('shareModal')">✕</button>
+    <div style="margin-bottom:16px;">
+      <h3 style="margin:0;font-family:var(--font-serif)">Share Movie</h3>
     </div>
     
     <div class="page-tabs" style="margin-bottom:16px">
-      <button class="page-tab active" id="shareFriendTab" onclick="switchShareTab('friend')">To Friend (DM)</button>
+      <button class="page-tab active" id="shareFriendTab" onclick="switchShareTab('friend')">To Friend</button>
       <button class="page-tab" id="shareGroupTab" onclick="switchShareTab('group')">To Group</button>
     </div>
 
@@ -499,7 +500,7 @@ let shareTargetType = 'friend';
 
 async function showShareModal() {
   if (!Auth.isLoggedIn()) return window.location.href='/login.html';
-  document.getElementById('shareModal').style.display='flex';
+  document.getElementById('shareModal').classList.add('open');
   document.getElementById('shareMessageText').value = '';
   switchShareTab('friend');
   
@@ -510,30 +511,34 @@ async function showShareModal() {
     ]);
     
     const fList = document.getElementById('shareFriendsList');
-    if (!friends.length) { fList.innerHTML = '<div class="text-muted text-sm">No friends available to share with. Follow users first!</div>'; }
-    else {
+    if (!friends.length) { 
+      fList.innerHTML = '<div class="text-muted text-sm" style="padding:12px">No friends available to share with.</div>'; 
+    } else {
       fList.innerHTML = friends.map(f => `
-        <label class="share-option" style="padding:6px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='transparent'">
-          <input type="checkbox" class="share-friend-check" value="${f._id}">
+        <div class="selection-card" onclick="toggleSelection(this, 'share-friend-check')">
+          <input type="checkbox" class="share-friend-check" value="${f._id}" style="display:none">
+          <div class="selection-indicator"></div>
           <img src="${f.avatar||`https://ui-avatars.com/api/?name=${f.username}&background=1e1e2a&color=f5a623&bold=true`}" class="avatar avatar-sm">
-          <span>${f.username}</span>
-        </label>
+          <span style="font-weight:500">${f.username}</span>
+        </div>
       `).join('');
     }
 
     const gList = document.getElementById('shareGroupsList');
     const groups = groupsData.myGroups;
-    if (!groups.length) { gList.innerHTML = '<div class="text-muted text-sm">You have not joined any groups.</div>'; }
-    else {
+    if (!groups.length) { 
+      gList.innerHTML = '<div class="text-muted text-sm" style="padding:12px">You have not joined any groups.</div>'; 
+    } else {
       gList.innerHTML = groups.map(g => `
-        <label class="share-option" style="padding:8px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg-body)'" onmouseout="this.style.background='transparent'">
-          <input type="checkbox" class="share-group-check" value="${g._id}">
-          <span style="font-size:1.4rem;line-height:1">🏘️</span>
+        <div class="selection-card" onclick="toggleSelection(this, 'share-group-check')">
+          <input type="checkbox" class="share-group-check" value="${g._id}" style="display:none">
+          <div class="selection-indicator"></div>
+          <span style="font-size:1.2rem">🏘️</span>
           <span style="font-weight:500">${g.name}</span>
-        </label>
+        </div>
       `).join('');
     }
-  } catch(e) {}
+  } catch(e) { console.error(e); }
 }
 
 function switchShareTab(type) {
@@ -573,7 +578,7 @@ async function executeShare() {
     
     await Promise.all(promises);
     
-    document.getElementById('shareModal').style.display='none';
+    closeModal('shareModal');
     toast('Shared successfully!', 'success');
     
     // Cleanup checkboxes
@@ -590,7 +595,7 @@ async function executeShare() {
 async function showAddToListModal() {
   if (!Auth.isLoggedIn()) return window.location.href='/login.html';
   const modal = document.getElementById('addToListModal');
-  modal.style.display = 'flex';
+  modal.classList.add('open');
   const container = document.getElementById('userListsContainer');
   container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Loading your lists...</div>';
   
@@ -604,13 +609,14 @@ async function showAddToListModal() {
     
     document.getElementById('confirmAddToList').disabled = false;
     container.innerHTML = lists.map(l => `
-      <label style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='var(--bg-elevated)'" onmouseout="this.style.background='transparent'">
-        <input type="radio" name="atlList" value="${l._id}" style="accent-color:var(--accent)">
+      <div class="selection-card" onclick="selectCard(this, 'atlList')">
+        <input type="radio" name="atlList" value="${l._id}" style="display:none">
+        <div class="selection-indicator"></div>
         <div style="flex:1">
-          <div style="font-weight:600;font-size:0.9rem">${l.title}</div>
-          <div style="font-size:0.75rem;color:var(--text-muted)">${l.movies.length} films</div>
+          <div style="font-weight:600;font-size:0.95rem">${l.title}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">${l.movies.length} films • ${l.isPublic?'🌍 Public':'🔒 Private'}</div>
         </div>
-      </label>
+      </div>
     `).join('');
     
     document.getElementById('confirmAddToList').onclick = async () => {
@@ -622,7 +628,7 @@ async function showAddToListModal() {
       try {
         await api.lists.addMovie(listId, { movieId: movieData.id, movieTitle: movieData.title, posterPath: movieData.poster_path, note });
         toast('Movie added to list!', 'success');
-        modal.style.display = 'none';
+        closeModal('addToListModal');
         document.getElementById('atlNote').value = '';
       } catch(e) { toast(e.message, 'error'); }
     };
@@ -630,14 +636,30 @@ async function showAddToListModal() {
     container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red)">Failed to load lists: ${e.message}</div>`;
   }
 }
+
+function selectCard(card, name) {
+  const container = card.parentElement;
+  container.querySelectorAll('.selection-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  card.querySelector(`input[name="${name}"]`).checked = true;
+}
+
+function toggleSelection(card, className) {
+  const cb = card.querySelector(`.${className}`);
+  cb.checked = !cb.checked;
+  card.classList.toggle('selected', cb.checked);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
 </script>
 
-<!-- Add to List Modal (Moved to end for stability) -->
-<div id="addToListModal" class="modal-overlay" style="display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center;padding:20px;">
-  <div class="modal" style="max-width:400px;width:100%;background:var(--bg-elevated);padding:24px;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow-lg);">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<!-- Add to List Modal -->
+<div id="addToListModal" class="modal-overlay">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="closeModal('addToListModal')">✕</button>
+    <div style="margin-bottom:16px;">
       <h3 style="margin:0;font-family:var(--font-serif)">Add to List</h3>
-      <button class="modal-close" onclick="document.getElementById('addToListModal').style.display='none'" style="border:none;background:transparent;font-size:1.5rem;cursor:pointer;color:var(--text-muted);">&times;</button>
     </div>
     <div id="userListsContainer" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px;padding:4px;display:flex;flex-direction:column;gap:4px;">
       <!-- Lists will be loaded here -->

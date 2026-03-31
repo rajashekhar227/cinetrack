@@ -66,8 +66,8 @@ router.post('/:id/movies', protect, async (req, res) => {
     const list = await List.findById(req.params.id);
     if (!list || list.user.toString() !== req.user._id.toString()) return res.status(403).json({message:'Not authorized'});
     const { movieId, movieTitle, posterPath, note } = req.body;
-    if (list.movies.find(m => m.movieId === movieId)) return res.status(400).json({message:'Movie already in list'});
-    list.movies.push({ movieId, movieTitle, posterPath, note });
+    if (list.movies.find(m => m.movieId === Number(movieId))) return res.status(400).json({message:'Movie already in list'});
+    list.movies.push({ movieId: Number(movieId), movieTitle, posterPath, note });
     await list.save();
     await Activity.create({ user: req.user._id, type: 'listed', movieId, movieTitle, posterPath, listId: list._id });
     res.json(list);

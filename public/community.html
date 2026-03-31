@@ -30,17 +30,19 @@
         <!-- Friends Feed (Default) -->
         <div id="friendsFeed" style="display:flex;gap:16px;">
           <!-- Left: Friends List -->
-          <div style="flex:0 0 200px;border-right:1px solid var(--border);padding-right:16px" id="friendsSidebar">
-            <h4 style="margin-bottom:12px;font-family:var(--font-serif)">Chats</h4>
-            <div id="friendsListContainer">Loading...</div>
+          <div style="flex:0 0 240px;padding-right:20px" id="friendsSidebar">
+            <h4 style="margin-bottom:16px;font-family:var(--font-display);letter-spacing:0.05em;color:var(--accent)">CHATS</h4>
+            <div id="friendsListContainer" style="display:flex;flex-direction:column;gap:4px">Loading...</div>
           </div>
           <!-- Right: Chat Box -->
-          <div style="flex:1;display:flex;flex-direction:column;min-height:500px;max-height:600px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-secondary)" id="chatBoxContainer">
-            <div id="chatHeader" style="padding:16px;border-bottom:1px solid var(--border);font-weight:600;color:var(--text-muted)">Select a friend to chat</div>
-            <div id="chatHistory" style="flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px"></div>
-            <div id="chatInputArea" style="padding:16px;border-top:1px solid var(--border);display:none;gap:8px">
-              <input type="text" id="chatInput" class="form-input" placeholder="Type a message..." style="flex:1" onkeydown="if(event.key==='Enter') sendMessage()">
-              <button class="btn btn-primary btn-sm" onclick="sendMessage()">Send</button>
+          <div class="glass-panel" style="flex:1;display:flex;flex-direction:column;min-height:500px;max-height:600px;padding:0;overflow:hidden" id="chatBoxContainer">
+            <div id="chatHeader" style="padding:20px;border-bottom:1px solid var(--border);font-weight:600;background:rgba(255,255,255,0.02)">
+              <div style="color:var(--text-muted);font-size:0.9rem">Select a friend to begin conversation</div>
+            </div>
+            <div id="chatHistory" style="flex:1;padding:24px;overflow-y:auto;display:flex;flex-direction:column;gap:16px"></div>
+            <div id="chatInputArea" style="padding:20px;border-top:1px solid var(--border);display:none;gap:12px;background:rgba(255,255,255,0.01)">
+              <input type="text" id="chatInput" class="form-input" placeholder="Write a message..." style="flex:1;background:rgba(0,0,0,0.2)" onkeydown="if(event.key==='Enter') sendMessage()">
+              <button class="btn btn-primary" onclick="sendMessage()" style="padding:0 24px">Send</button>
             </div>
           </div>
         </div>
@@ -62,27 +64,27 @@
       </div>
 
       <!-- Sidebar -->
-      <aside>
+      <aside style="display:flex;flex-direction:column;gap:24px">
         <!-- Find Users -->
-        <div class="sidebar-widget">
-          <div class="sidebar-widget-title">FIND PEOPLE</div>
+        <div class="glass-panel" style="padding:20px">
+          <div class="sidebar-widget-title" style="margin-bottom:16px;color:var(--accent)">FIND PEOPLE</div>
           <div style="position:relative">
-            <input type="text" id="userSearch" class="form-input" placeholder="Search users…" style="padding-left:36px">
+            <input type="text" id="userSearch" class="form-input" placeholder="Search users…" style="padding-left:36px;background:rgba(0,0,0,0.2)">
             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none">🔍</span>
           </div>
-          <div id="userSearchResults" style="margin-top:12px"></div>
+          <div id="userSearchResults" style="margin-top:16px"></div>
         </div>
 
         <!-- Popular Lists -->
-        <div class="sidebar-widget">
-          <div class="sidebar-widget-title">POPULAR LISTS</div>
+        <div class="glass-panel" style="padding:20px">
+          <div class="sidebar-widget-title" style="margin-bottom:16px;color:var(--accent)">POPULAR LISTS</div>
           <div id="popularLists"></div>
         </div>
 
         <!-- Popular This Week -->
-        <div class="sidebar-widget">
-          <div class="sidebar-widget-title">HOT THIS WEEK</div>
-          <div class="scroll-row" id="hotMovies" style="flex-wrap:nowrap;overflow-x:auto"></div>
+        <div class="glass-panel" style="padding:20px">
+          <div class="sidebar-widget-title" style="margin-bottom:16px;color:var(--accent)">HOT THIS WEEK</div>
+          <div class="scroll-row" id="hotMovies" style="flex-wrap:nowrap;overflow-x:auto;gap:12px;padding-bottom:8px"></div>
         </div>
       </aside>
     </div>
@@ -175,9 +177,9 @@ function renderChatHistory(messages) {
       `;
     }
     return `
-      <div style="align-self:${isMe?'flex-end':'flex-start'};background:${isMe?'rgba(99,102,241,0.2)':'var(--bg-elevated)'};color:var(--text-primary);padding:8px 12px;border-radius:8px;max-width:85%;word-wrap:break-word;font-size:0.9rem">
+      <div style="align-self:${isMe?'flex-end':'flex-start'};background:${isMe?'rgba(245,166,35,0.15)':'rgba(255,255,255,0.05)'};color:var(--text-primary);padding:12px 16px;border-radius:14px;border-bottom-${isMe?'right':'left'}-radius:2px;max-width:80%;word-wrap:break-word;font-size:0.95rem;box-shadow:0 4px 15px rgba(0,0,0,0.1);border:1px solid ${isMe?'rgba(245,166,35,0.2)':'rgba(255,255,255,0.05)'}">
         ${content}
-        <div style="font-size:0.65rem;opacity:0.6;margin-top:6px;text-align:right">${timeAgo(m.createdAt)}</div>
+        <div style="font-size:0.7rem;opacity:0.5;margin-top:8px;text-align:right;font-weight:600">${timeAgo(m.createdAt)}</div>
       </div>
     `;
   }).join('');
@@ -236,16 +238,18 @@ async function loadPopularFeed() {
 
 function groupCardHtml(g) {
   return `
-    <div class="activity-item" style="cursor:pointer;border:1px solid var(--border);margin-bottom:8px" onclick="window.location.href='/group.html?id=${g._id}'">
+    <div class="glass-panel" style="cursor:pointer;margin-bottom:12px;padding:20px;display:flex;align-items:center;gap:20px" onclick="window.location.href='/group.html?id=${g._id}'">
       <div style="flex:1;">
-        <div style="font-weight:600;font-size:1.1rem;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
-          ${g.name} ${g.isPrivate ? '<span style="font-size:0.75rem;background:var(--bg-body);padding:2px 6px;border-radius:4px;color:var(--text-muted)">Private</span>' : ''}
+        <div style="font-weight:700;font-family:var(--font-display);font-size:1.2rem;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
+          ${g.name} ${g.isPrivate ? '<span style="font-size:0.65rem;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Private</span>' : ''}
         </div>
-        <p style="color:var(--text-secondary);font-size:0.9rem;margin:4px 0;">${g.description || 'No description'}</p>
-        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px;">
-          ${g.members.length} member(s) &bull; Created by ${g.creator?.username}
+        <p style="color:var(--text-secondary);font-size:0.95rem;margin:8px 0;line-height:1.5">${g.description || 'Join this group to start sharing movies within the community.'}</p>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:12px;display:flex;align-items:center;gap:12px">
+          <span>👥 ${g.members.length} members</span>
+          <span>👑 ${g.creator?.username}</span>
         </div>
       </div>
+      <div style="color:var(--accent);font-size:1.5rem">→</div>
     </div>
   `;
 }

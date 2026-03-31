@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Profile — CineTrack</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/pages.css">
 </head>
@@ -25,7 +26,7 @@
     <!-- Main Content -->
     <div>
       <div class="tabs">
-        <button class="tab-btn active" data-tab="films">Films</button>
+        <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
         <button class="tab-btn" data-tab="reviews">Reviews</button>
         <button class="tab-btn" data-tab="watchlist">Watchlist</button>
         <button class="tab-btn" data-tab="lists">Lists</button>
@@ -33,9 +34,53 @@
         <button class="tab-btn edit-only" data-tab="settings" style="display:none">⚙️ Settings</button>
       </div>
 
-      <!-- Films tab -->
-      <div class="tab-content active" id="tab-films">
-        <div class="grid-5" id="watchedGrid" style="gap:14px"></div>
+      <!-- Dashboard tab (Default) -->
+      <div class="tab-content active" id="tab-dashboard">
+        <div class="insight-grid">
+          <div class="glass-panel insight-card">
+            <div class="insight-label">Yearly Progress</div>
+            <div style="display:flex;align-items:center;justify-content:center;flex:1">
+              <div class="ring-container">
+                <svg class="ring-svg">
+                  <circle class="ring-bg" cx="70" cy="70" r="60"></circle>
+                  <circle class="ring-fill" id="yearlyRing" cx="70" cy="70" r="60"></circle>
+                </svg>
+                <div class="ring-content">
+                  <div class="ring-num" id="watchedCount">0</div>
+                  <div class="ring-label">Films</div>
+                </div>
+              </div>
+            </div>
+            <div class="text-muted text-xs" style="text-align:center">Goal: <span id="viewingGoal">52</span> films</div>
+          </div>
+          
+          <div class="glass-panel insight-card">
+            <div class="insight-label">Genre Affinity</div>
+            <div class="affinity-bar-container" id="genreAffinityContainer">
+              <!-- Genre bars will be injected here -->
+            </div>
+          </div>
+
+          <div class="glass-panel insight-card">
+            <div class="insight-label">Average Rating</div>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px">
+              <div class="insight-value" id="avgRatingValue">0.0</div>
+              <div id="avgRatingStars"></div>
+            </div>
+            <div class="text-muted text-xs" style="text-align:center">Based on <span id="ratedCount">0</span> ratings</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:24px">
+           <div class="glass-panel">
+              <div class="insight-label" style="margin-bottom:20px">Recent Activity</div>
+              <div class="dashboard-timeline" id="dashboardActivity"></div>
+           </div>
+           <div class="glass-panel">
+              <div class="insight-label" style="margin-bottom:20px">Top Genres</div>
+              <div id="topGenresList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+           </div>
+        </div>
       </div>
 
       <!-- Reviews tab -->
@@ -125,7 +170,7 @@ let profileUser = null;
 const myUser = Auth.getUser();
 
 document.addEventListener('DOMContentLoaded', async () => {
-  renderNav('');
+  renderNav('profile');
   const params = new URLSearchParams(location.search);
   const username = params.get('u') || myUser?.username;
   if (!username) { window.location.href = '/login.html'; return; }
@@ -141,6 +186,12 @@ async function loadProfile(username) {
     document.title = `${profileUser.username} — CineTrack`;
     const isMe = myUser && myUser._id === profileUser._id.toString();
     const isFollowing = myUser && profileUser.followers?.some(f => (f._id||f).toString() === myUser._id);
+
+    // Set cinematic backdrop
+    const latestMovie = profileUser.watched?.[0];
+    if (latestMovie) {
+      document.querySelector('.profile-cover-art').style.backgroundImage = `url(${img.backdrop(latestMovie.posterPath)})`;
+    }
 
     document.getElementById('profileUserRow').innerHTML = `
       <div style="position:relative;display:inline-block;cursor:${isMe?'pointer':'default'};flex-shrink:0" ${isMe ? `onclick="document.getElementById('avatarUpload').click()"` : ''}>
@@ -187,9 +238,61 @@ async function loadProfile(username) {
         <span style="font-size:0.88rem;font-weight:500">${f.username}</span>
       </a>`).join('') || '<p class="text-muted text-sm">Not following anyone yet</p>';
 
-    // Load films by default
-    renderWatchedGrid();
-  } catch(e) { toast('Failed to load profile','error'); }
+    // Load dashboard by default
+    renderDashboard();
+  } catch(e) { console.error(e); toast('Failed to load profile','error'); }
+}
+
+async function renderDashboard() {
+  const watched = profileUser.watched || [];
+  const reviews = await api.reviews.forUser(profileUser._id);
+  
+  // 1. Update Stats
+  const watchedCount = watched.length;
+  document.getElementById('watchedCount').textContent = watchedCount;
+  
+  const rated = watched.filter(m => m.rating > 0);
+  const avgRating = rated.length ? (rated.reduce((sum, m) => sum + m.rating, 0) / rated.length).toFixed(1) : '0.0';
+  document.getElementById('avgRatingValue').textContent = avgRating;
+  document.getElementById('avgRatingStars').innerHTML = starsHtml(avgRating);
+  document.getElementById('ratedCount').textContent = rated.length;
+
+  // 2. Animate SVG Ring
+  const goal = 52;
+  const percent = Math.min(100, (watchedCount / goal) * 100);
+  const ring = document.getElementById('yearlyRing');
+  const offset = 377 - (377 * percent) / 100;
+  setTimeout(() => ring.style.strokeDashoffset = offset, 100);
+
+  // 3. Genre Affinity (Mocked/Static for now as genres aren't in User model)
+  const mockGenres = [
+    { name: 'Drama', val: 75 },
+    { name: 'Action', val: 60 },
+    { name: 'Sci-Fi', val: 45 },
+    { name: 'Comedy', val: 30 }
+  ];
+  document.getElementById('genreAffinityContainer').innerHTML = mockGenres.map(g => `
+    <div class="affinity-item">
+      <div class="affinity-label">${g.name}</div>
+      <div class="affinity-track"><div class="affinity-fill" style="width:${g.val}%"></div></div>
+    </div>
+  `).join('');
+  
+  document.getElementById('topGenresList').innerHTML = mockGenres.map(g => `
+    <span class="badge" style="background:var(--bg-elevated);color:var(--text-primary);padding:6px 12px;border-radius:20px;border:1px solid var(--border)">${g.name}</span>
+  `).join('');
+
+  // 4. Activity Timeline
+  const activity = await api.activity.user(profileUser._id);
+  document.getElementById('dashboardActivity').innerHTML = activity.slice(0, 5).map(a => `
+    <div class="timeline-item">
+      <div style="font-size:0.85rem;color:var(--text-primary);font-weight:500">
+        ${a.type==='watched'?'Watched':a.type==='liked'?'Liked':a.type==='review'?'Reviewed':'Activity on'} 
+        <span style="color:var(--accent)">${a.movieTitle || 'a movie'}</span>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-muted)">${timeAgo(a.createdAt)}</div>
+    </div>
+  `).join('') || '<div class="text-muted text-sm">No recent activity</div>';
 }
 
 function renderWatchedGrid() {
@@ -212,6 +315,7 @@ function initTabs(username) {
       btn.classList.add('active');
       const tab = btn.dataset.tab;
       document.getElementById('tab-'+tab).classList.add('active');
+      if (tab==='dashboard') renderDashboard();
       if (tab==='reviews') loadUserReviews();
       if (tab==='watchlist') renderWatchlistGrid();
       if (tab==='lists') loadUserLists();
