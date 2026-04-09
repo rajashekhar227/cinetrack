@@ -18,7 +18,7 @@
     </div>
 
     <div id="authError" class="form-error" style="margin-bottom:16px; display:none"></div>
-    <div style="display:flex; flex-direction:column; gap:16px">
+    <div id="loginFormContainer" style="display:flex; flex-direction:column; gap:16px">
       <div class="form-group">
         <label class="form-label">Email</label>
         <input type="email" id="email" class="form-input" placeholder="you@example.com" autocomplete="email">
@@ -26,6 +26,9 @@
       <div class="form-group">
         <label class="form-label">Password</label>
         <input type="password" id="password" class="form-input" placeholder="••••••••" autocomplete="current-password">
+        <div style="text-align:right; margin-top:6px;">
+          <a href="#" id="forgotBtn" style="font-size:0.82rem; color:var(--text-secondary); text-decoration:underline;">Forgot Password?</a>
+        </div>
       </div>
       <button class="btn btn-primary" id="loginBtn" style="margin-top:8px; width:100%; border-radius:var(--radius); letter-spacing:0.05em">Sign In</button>
       <div class="auth-divider"><span>or continue with</span></div>
@@ -44,6 +47,35 @@
       <div style="text-align:center; font-size:0.85rem; margin-top:8px">
         Didn't receive code? <a href="#" id="resendBtn" style="color:var(--accent)">Resend</a>
       </div>
+    </div>
+
+    <!-- Forgot Password Start Section -->
+    <div id="forgotSection" style="display:none; flex-direction:column; gap:16px">
+       <div class="logo-sub" style="margin-bottom:16px; color:var(--accent)">Reset Password</div>
+       <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:8px">Enter your email and we'll send a 6-digit code to reset your password.</p>
+       <div class="form-group">
+         <label class="form-label">Email</label>
+         <input type="email" id="forgotEmail" class="form-input" placeholder="you@example.com">
+       </div>
+       <button class="btn btn-primary" id="requestResetBtn" style="width:100%">Send Reset Code</button>
+       <div style="text-align:center; font-size:0.85rem; margin-top:8px">
+          Remembered? <a href="#" id="backToLoginBtn" style="color:var(--accent)">Back to Login</a>
+       </div>
+    </div>
+
+    <!-- Reset Password Verify Section -->
+    <div id="resetVerifySection" style="display:none; flex-direction:column; gap:16px">
+      <div class="logo-sub" style="margin-bottom:16px; color:var(--accent)">Set New Password</div>
+       <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:8px">Code sent to <b id="resetDisplayEmail"></b></p>
+       <div class="form-group">
+         <label class="form-label">Verification Code</label>
+         <input type="text" id="resetCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:8px">
+       </div>
+       <div class="form-group" style="margin-top:8px">
+         <label class="form-label">New Password</label>
+         <input type="password" id="newPassword" class="form-input" placeholder="••••••••">
+       </div>
+       <button class="btn btn-primary" id="resetPasswordSubmitBtn" style="margin-top:8px; width:100%">Update Password</button>
     </div>
     <div class="auth-switch">
       Don't have an account? <a href="/register.html">Sign up free</a>
@@ -129,6 +161,75 @@
     if(e.key==='Enter') document.getElementById('verifyBtn').click();
   });
   document.getElementById('password').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginBtn').click(); });
+
+  // Forgot Password Flow
+  document.getElementById('forgotBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('loginFormContainer').style.display = 'none';
+    document.querySelector('.auth-switch').style.display = 'none';
+    document.getElementById('forgotSection').style.display = 'flex';
+    document.getElementById('authError').style.display = 'none';
+    
+    // Auto-fill if already typed
+    const existing = document.getElementById('email').value.trim();
+    if(existing) document.getElementById('forgotEmail').value = existing;
+  });
+
+  document.getElementById('backToLoginBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('forgotSection').style.display = 'none';
+    document.getElementById('loginFormContainer').style.display = 'flex';
+    document.querySelector('.auth-switch').style.display = 'block';
+    document.getElementById('authError').style.display = 'none';
+  });
+
+  document.getElementById('requestResetBtn').addEventListener('click', async () => {
+    const email = document.getElementById('forgotEmail').value.trim();
+    const errEl = document.getElementById('authError');
+    const btn = document.getElementById('requestResetBtn');
+    if (!email) { errEl.textContent = 'Please enter your email'; errEl.style.display='block'; return; }
+
+    btn.textContent = 'Sending…'; btn.disabled = true;
+    try {
+      await api.auth.forgotPassword({ email });
+      toast('Verification code sent!', 'success');
+      document.getElementById('forgotSection').style.display = 'none';
+      document.getElementById('resetVerifySection').style.display = 'flex';
+      document.getElementById('resetDisplayEmail').textContent = email;
+      errEl.style.display = 'none';
+    } catch(e) {
+      errEl.textContent = e.message; errEl.style.display = 'block';
+    } finally {
+      btn.textContent = 'Send Reset Code'; btn.disabled = false;
+    }
+  });
+
+  document.getElementById('resetPasswordSubmitBtn').addEventListener('click', async () => {
+    const email = document.getElementById('resetDisplayEmail').textContent;
+    const code = document.getElementById('resetCode').value.trim();
+    const newPassword = document.getElementById('newPassword').value;
+    const errEl = document.getElementById('authError');
+    const btn = document.getElementById('resetPasswordSubmitBtn');
+
+    if (!code || code.length !== 6) { errEl.textContent = 'Please enter the 6-digit code'; errEl.style.display='block'; return; }
+    if (!newPassword || newPassword.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; errEl.style.display='block'; return; }
+
+    btn.textContent = 'Updating…'; btn.disabled = true;
+    try {
+      await api.auth.resetPassword({ email, code, newPassword });
+      toast('Password has been reset successfully!', 'success');
+      // Redirect back to login
+      document.getElementById('resetVerifySection').style.display = 'none';
+      document.getElementById('loginFormContainer').style.display = 'flex';
+      document.querySelector('.auth-switch').style.display = 'block';
+      document.getElementById('password').value = ''; 
+      errEl.style.display = 'none';
+    } catch(e) {
+      errEl.textContent = e.message; errEl.style.display = 'block';
+    } finally {
+      btn.textContent = 'Update Password'; btn.disabled = false;
+    }
+  });
 
   // Initialize Google Auth
   async function initGoogleAuth() {

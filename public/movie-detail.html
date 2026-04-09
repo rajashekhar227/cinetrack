@@ -99,10 +99,11 @@
         <div class="sidebar-widget-title">DETAILS</div>
         <div id="movieDetailsList"></div>
       </div>
-      <div class="sidebar-widget">
+      <div class="sidebar-widget" id="watchProvidersWidget">
         <div class="sidebar-widget-title">WHERE TO WATCH</div>
-        <p style="font-size:0.85rem;color:var(--text-muted)">Check JustWatch for streaming availability in your region.</p>
-        <a id="justwatchLink" href="#" target="_blank" class="btn btn-outline btn-sm" style="margin-top:12px;width:100%">Find on JustWatch ↗</a>
+        <div id="watchProvidersContainer">
+          <p style="font-size:0.85rem;color:var(--text-muted)">Loading providers...</p>
+        </div>
       </div>
       <div class="sidebar-widget" id="sendRecWidget" style="display:none">
         <div class="sidebar-widget-title">CLASSIC RECOMMENDATION</div>
@@ -285,7 +286,62 @@ async function loadMovie(id) {
         <span style="font-weight:500;text-align:right;max-width:55%">${v}</span>
       </div>`).join('');
 
-    document.getElementById('justwatchLink').href = `https://www.justwatch.com/in/search?q=${encodeURIComponent(movieData.title)}`;
+    // Watch Providers logic
+    const providersContainer = document.getElementById('watchProvidersContainer');
+    if (providersContainer) {
+      const providersData = movieData['watch/providers']?.results;
+      // Prefer User's region (IN) then fallback to US, or very first available
+      const region = providersData?.IN || providersData?.US || (providersData && Object.values(providersData).length > 0 ? Object.values(providersData)[0] : null);
+      if (region || (providersData && Object.keys(providersData).length > 0)) {
+        
+        const getPlatformLink = (providerName, defaultLink) => {
+          const name = providerName.toLowerCase();
+          const title = encodeURIComponent(movieData.title);
+          if (name.includes('netflix')) return `https://www.netflix.com/search?q=${title}`;
+          if (name.includes('amazon') || name.includes('prime')) return `https://www.primevideo.com/search/ref=atv_sr_sug_4?phrase=${title}`;
+          if (name.includes('disney')) return `https://www.disneyplus.com/search?q=${title}`;
+          if (name.includes('hulu')) return `https://www.hulu.com/search?q=${title}`;
+          if (name.includes('apple')) return `https://tv.apple.com/search?q=${title}`;
+          if (name.includes('max') || name.includes('hbo')) return `https://play.max.com/search?q=${title}`;
+          if (name.includes('hotstar')) return `https://www.hotstar.com/in/explore?searchQuery=${title}`;
+          if (name.includes('zee5')) return `https://www.zee5.com/search?q=${title}`;
+          if (name.includes('sonyliv')) return `https://www.sonyliv.com/search?q=${title}`;
+          if (name.includes('jio')) return `https://www.jiocinema.com/search?q=${title}`;
+          return defaultLink || `https://www.justwatch.com/in/search?q=${title}`;
+        };
+
+        let html = '';
+        if (region && region.flatrate && region.flatrate.length > 0) {
+          html += '<div style="margin-bottom:8px;font-size:0.85rem;color:var(--text-secondary)">Stream On:</div>';
+          html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">';
+          region.flatrate.forEach(p => {
+             const link = getPlatformLink(p.provider_name, region.link);
+             html += `<a href="${link}" target="_blank" title="Stream on ${p.provider_name}" style="transition:transform 0.2s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <img src="${img.profile(p.logo_path, 'w185')}" style="width:44px;height:44px;border-radius:var(--radius-sm);box-shadow:0 4px 10px rgba(0,0,0,0.5)">
+                      </a>`;
+          });
+          html += '</div>';
+        } 
+        if (region && region.rent && region.rent.length > 0) {
+          html += '<div style="margin-bottom:8px;font-size:0.85rem;color:var(--text-secondary)">Rent/Buy:</div>';
+          html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">';
+          region.rent.forEach(p => {
+             const link = getPlatformLink(p.provider_name, region.link);
+             html += `<a href="${link}" target="_blank" title="Rent on ${p.provider_name}" style="transition:transform 0.2s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                        <img src="${img.profile(p.logo_path, 'w185')}" style="width:36px;height:36px;border-radius:var(--radius-sm);box-shadow:0 2px 6px rgba(0,0,0,0.5)">
+                      </a>`;
+          });
+          html += '</div>';
+        }
+        
+        providersContainer.innerHTML = html || `<p style="font-size:0.85rem;color:var(--text-muted)">Not available to stream in your region.</p>`;
+      } else {
+        providersContainer.innerHTML = `
+          <p style="font-size:0.85rem;color:var(--text-muted)">Not available to stream in your region.</p>
+          <a href="https://www.justwatch.com/in/search?q=${encodeURIComponent(movieData.title)}" target="_blank" class="btn btn-outline btn-sm" style="margin-top:12px;width:100%">Search JustWatch ↗</a>
+        `;
+      }
+    }
 
   } catch(e) { toast('Failed to load movie: ' + e.message, 'error'); }
 }

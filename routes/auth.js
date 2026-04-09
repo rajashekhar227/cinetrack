@@ -14,7 +14,9 @@ const crypto = require('crypto');
 let transporter;
 if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Uses TLS automatically because of port 587
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
@@ -31,7 +33,7 @@ const sendVerificationEmail = async (email, otp) => {
     from: `"CineTrack" <${process.env.EMAIL_USER || 'noreply@cinetrack.com'}>`,
     to: email,
     subject: 'Your CineTrack Verification Code',
-    text: `Your verification code is: ${otp}. It expires in 10 minutes.`,
+    text: `Your verification code is: ${otp}. It expires in 30 seconds.`,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
         <h2 style="color: #f5a623; text-align: center;">CINETRACK</h2>
@@ -40,7 +42,7 @@ const sendVerificationEmail = async (email, otp) => {
         <div style="background: #f9f9f9; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1e1e2a; border-radius: 5px; margin: 20px 0;">
           ${otp}
         </div>
-        <p>This code will expire in 10 minutes.</p>
+        <p>This code will expire in 30 seconds.</p>
         <p>If you didn't request this, you can safely ignore this email.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
         <p style="font-size: 12px; color: #888; text-align: center;">&copy; 2024 CineTrack. All rights reserved.</p>
@@ -109,10 +111,17 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Please use an official Google Mail (@gmail.com) address' });
     }
     const exists = await User.findOne({ $or: [{ email }, { username }] });
-    if (exists) return res.status(400).json({ message: 'User already exists' });
+    if (exists) {
+      if (!exists.isVerified) {
+        // If the old account was never verified, delete it to allow re-registration
+        await User.findByIdAndDelete(exists._id);
+      } else {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+    }
     
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    const otpExpires = new Date(Date.now() + 30 * 1000); // 30 seconds
 
     const user = await User.create({ 
       username, 
@@ -172,7 +181,7 @@ router.post('/resend', async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.verificationCode = otp;
-    user.verificationExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.verificationExpires = new Date(Date.now() + 30 * 1000); // 30 seconds
     await user.save();
 
     sendVerificationEmail(email, otp); // Don't await, send in background
@@ -205,6 +214,52 @@ router.post('/login', async (req, res) => {
       _id: user._id, username: user.username, email: user.email,
       avatar: user.avatar, bio: user.bio, token: generateToken(user._id)
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'If an account with that email exists, an OTP has been sent.' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.verificationCode = otp;
+    user.verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await user.save();
+
+    sendVerificationEmail(email, otp); // send in background
+    res.json({ message: 'Password reset OTP sent to email' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    const user = await User.findOne({
+      email,
+      verificationCode: code,
+      verificationExpires: { $gt: Date.now() }
+    });
+
+    if (!user) return res.status(400).json({ message: 'Invalid or expired OTP' });
+
+    user.password = newPassword;
+    user.verificationCode = undefined;
+    user.verificationExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Password has been successfully reset' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

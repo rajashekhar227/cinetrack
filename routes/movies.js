@@ -68,7 +68,11 @@ router.get('/upcoming',        async (req, res) => { try { res.json(await tmdb('
 router.get('/search',          async (req, res) => { 
   try { 
     console.log('🔍 Search Query:', req.query.q);
-    res.json(await tmdb('/search/movie', { query: req.query.q, page: req.query.page||1 })); 
+    const data = await tmdb('/search/multi', { query: req.query.q, page: req.query.page||1 });
+    if (data.results) {
+      data.results = data.results.filter(r => r.media_type === 'movie' || r.media_type === 'person');
+    }
+    res.json(data);
   } catch(e){ 
     console.error('❌ Search Error:', e.message);
     res.status(500).json({message:e.message}); 
@@ -76,7 +80,7 @@ router.get('/search',          async (req, res) => {
 });
 router.get('/genres',          async (req, res) => { try { res.json(await tmdb('/genre/movie/list')); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/by-genre/:id',    async (req, res) => { try { res.json(await tmdb('/discover/movie', { with_genres: req.params.id, sort_by: 'popularity.desc', page: req.query.page||1 })); } catch(e){ res.status(500).json({message:e.message}); }});
-router.get('/:id',             async (req, res) => { try { res.json(await tmdb(`/movie/${req.params.id}`, { append_to_response: 'credits,videos,similar,recommendations,images' })); } catch(e){ res.status(500).json({message:e.message}); }});
+router.get('/:id',             async (req, res) => { try { res.json(await tmdb(`/movie/${req.params.id}`, { append_to_response: 'credits,videos,similar,recommendations,images,watch/providers' })); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/:id/credits',     async (req, res) => { try { res.json(await tmdb(`/movie/${req.params.id}/credits`)); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/:id/similar',     async (req, res) => { try { res.json(await tmdb(`/movie/${req.params.id}/similar`)); } catch(e){ res.status(500).json({message:e.message}); }});
 router.get('/person/:id',      async (req, res) => { try { res.json(await tmdb(`/person/${req.params.id}`, { append_to_response: 'movie_credits' })); } catch(e){ res.status(500).json({message:e.message}); }});

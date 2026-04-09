@@ -44,7 +44,10 @@
       </div>
       <button class="btn btn-primary" id="verifyBtn" style="width:100%">Verify Account</button>
       <div style="text-align:center; font-size:0.85rem; margin-top:8px">
-        Didn't receive code? <a href="#" id="resendBtn" style="color:var(--accent)">Resend</a>
+        <span id="timerText">Code expires in <b id="timerDisplay" style="color:var(--accent)">30s</b></span>
+        <span id="resendContainer" style="display:none">
+          Code expired. <a href="#" id="resendBtn" style="color:var(--accent)">Resend new code</a>
+        </span>
       </div>
     </div>
     <div class="auth-switch">
@@ -56,6 +59,34 @@
 <script src="/js/api.js"></script>
 <script>
   if (Auth.isLoggedIn()) window.location.href = '/';
+
+  let otpTimerInterval;
+  function startOtpTimer() {
+    clearInterval(otpTimerInterval);
+    let timeLeft = 30;
+    const display = document.getElementById('timerDisplay');
+    const timerText = document.getElementById('timerText');
+    const resendContainer = document.getElementById('resendContainer');
+    const verifyBtn = document.getElementById('verifyBtn');
+    
+    timerText.style.display = 'inline';
+    resendContainer.style.display = 'none';
+    verifyBtn.disabled = false;
+    display.textContent = '30s';
+    
+    otpTimerInterval = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        clearInterval(otpTimerInterval);
+        timerText.style.display = 'none';
+        resendContainer.style.display = 'inline';
+        verifyBtn.disabled = true;
+      } else {
+        display.textContent = timeLeft + 's';
+      }
+    }, 1000);
+  }
+
   document.getElementById('registerBtn').addEventListener('click', async () => {
     const username = document.getElementById('username').value.trim();
     const email = document.getElementById('email').value.trim();
@@ -86,6 +117,7 @@
         document.getElementById('otpSection').style.display = 'flex';
         document.getElementById('displayEmail').textContent = email;
         document.querySelector('.logo-sub').textContent = 'Almost there…';
+        startOtpTimer();
         toast('Verification code sent!', 'info');
       } else {
         Auth.setAuth(data);
@@ -135,6 +167,7 @@
     const email = document.getElementById('displayEmail').textContent;
     try {
       await api.auth.resend({ email });
+      startOtpTimer();
       toast('New code sent!', 'success');
     } catch (e) {
       toast(e.message, 'error');

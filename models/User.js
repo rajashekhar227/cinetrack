@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   verificationCode: String,
   verificationExpires: Date,
   favoriteGenres: [{ type: String }],
+  followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   watchlist: [{

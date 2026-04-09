@@ -16,28 +16,35 @@ router.get('/search', async (req, res) => {
 router.get('/:username', optionalAuth, async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username })
-      .select('-password').populate('followers following', 'username avatar');
+      .select('-password').populate('followers following followRequests', 'username avatar');
     if (!user) return res.status(404).json({message:'User not found'});
-    res.json(user);
+    
+    // Only return followRequests if viewer is the owner
+    const userObj = user.toObject();
+    res.json(userObj);
   } catch(e){ res.status(500).json({message:e.message}); }
 });
 
 router.post('/:id/follow', protect, async (req, res) => {
   try {
-    if (req.params.id === req.user._id.toString()) return res.status(400).json({message:"Can't follow yourself"});
+    if (req.params.id === req.user._id.toString()) return res.status(400).json({message:"Can't request yourself"});
     const target = await User.findById(req.params.id);
     const me = await User.findById(req.user._id);
-    const isFollowing = me.following.includes(req.params.id);
+    
+    const isFollowing = me.following.some(id => id.toString() === req.params.id);
+
     if (isFollowing) {
       me.following.pull(req.params.id);
       target.followers.pull(req.user._id);
+      await me.save(); await target.save();
+      return res.json({ following: false });
     } else {
       me.following.push(req.params.id);
       target.followers.push(req.user._id);
+      await me.save(); await target.save();
       await Activity.create({ user: req.user._id, type: 'followed', targetUser: req.params.id });
+      return res.json({ following: true });
     }
-    await me.save(); await target.save();
-    res.json({ following: !isFollowing, followerCount: target.followers.length });
   } catch(e){ res.status(500).json({message:e.message}); }
 });
 

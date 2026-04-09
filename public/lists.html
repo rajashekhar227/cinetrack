@@ -177,9 +177,9 @@ async function loadListDetail(listId) {
 
     document.getElementById('listDetailMovies').innerHTML = list.movies.length
       ? list.movies.map((m,i) => `
-          <div class="movie-card" style="position:relative">
+          <div class="movie-card" style="position:relative;cursor:pointer;" onclick="window.location.href='/movie-detail.html?id=${m.movieId}'">
             ${list.isRanked?`<div style="position:absolute;top:8px;left:8px;z-index:2;background:var(--accent);color:var(--bg-primary);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem">${i+1}</div>`:''}
-            <img class="movie-card-poster" src="${img.poster(m.posterPath)||'https://via.placeholder.com/160x240/16161f/5a5560?text=?'}" alt="${m.movieTitle}" loading="lazy" onclick="window.location.href='/movie-detail.html?id=${m.movieId}'">
+            <img class="movie-card-poster" src="${img.poster(m.posterPath)||'https://via.placeholder.com/160x240/16161f/5a5560?text=?'}" alt="${m.movieTitle}" loading="lazy">
             <div class="movie-card-overlay">
               ${m.note?`<div style="font-size:0.75rem;color:var(--text-secondary);font-style:italic;margin-bottom:4px">"${m.note}"</div>`:''}
               <div class="movie-card-title">${m.movieTitle}</div>

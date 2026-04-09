@@ -186,6 +186,7 @@ async function loadProfile(username) {
     document.title = `${profileUser.username} — CineTrack`;
     const isMe = myUser && myUser._id === profileUser._id.toString();
     const isFollowing = myUser && profileUser.followers?.some(f => (f._id||f).toString() === myUser._id);
+    let followBtnText = isFollowing ? 'Unfollow' : 'Follow';
 
     // Set cinematic backdrop
     const latestMovie = profileUser.watched?.[0];
@@ -210,7 +211,10 @@ async function loadProfile(username) {
         <div style="margin-top:12px;display:flex;gap:10px">
           ${isMe
             ? `<button class="btn btn-outline btn-sm" onclick="showTab('settings')">Edit Profile</button>`
-            : myUser ? `<button class="btn btn-primary btn-sm" id="followBtn" onclick="toggleFollow()">${isFollowing?'Unfollow':'Follow'}</button>` : ''}
+            : myUser ? `
+                <button class="btn btn-primary btn-sm" id="followBtn" onclick="toggleFollow()">${followBtnText}</button>
+                <button class="btn btn-outline btn-sm" onclick="window.location.href='/community.html?chat=${profileUser._id}'">Message</button>
+              ` : ''}
         </div>
       </div>`;
 
@@ -229,6 +233,8 @@ async function loadProfile(username) {
       <div class="flex-between"><span class="text-muted text-sm">Liked Films</span><strong>${profileUser.liked?.length||0}</strong></div>
       <div class="flex-between"><span class="text-muted text-sm">Watchlist</span><strong>${profileUser.watchlist?.length||0}</strong></div>
       <div class="flex-between"><span class="text-muted text-sm">Lists</span><strong>${profileUser.stats?.totalLists||0}</strong></div>`;
+
+    // No pending requests widget
 
     // Following list
     const following = profileUser.following || [];
@@ -402,7 +408,7 @@ async function toggleFollow() {
   try {
     const res = await api.users.follow(profileUser._id);
     document.getElementById('followBtn').textContent = res.following ? 'Unfollow' : 'Follow';
-    toast(res.following ? `Following ${profileUser.username}` : `Unfollowed ${profileUser.username}`, 'success');
+    toast(res.following ? 'Now following!' : 'Unfollowed', 'success');
   } catch(e) { toast(e.message,'error'); }
 }
 

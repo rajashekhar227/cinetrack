@@ -61,6 +61,8 @@ const api = {
     google:   (d) => api.post('/auth/google', d),
     verify:   (d) => api.post('/auth/verify', d),
     resend:   (d) => api.post('/auth/resend', d),
+    forgotPassword: (d) => api.post('/auth/forgot-password', d),
+    resetPassword: (d) => api.post('/auth/reset-password', d),
   },
 
   // Movies (TMDB proxy)
@@ -106,6 +108,8 @@ const api = {
     search:   (q) => api.get(`/users/search?q=${encodeURIComponent(q)}`),
     profile:  (username) => api.get(`/users/${username}`),
     follow:   (id) => api.post(`/users/${id}/follow`),
+    acceptFollow: (id) => api.post(`/users/${id}/follow/accept`),
+    rejectFollow: (id) => api.post(`/users/${id}/follow/reject`),
     addWatchlist:    (d)  => api.post('/users/watchlist/add', d),
     removeWatchlist: (id) => api.delete(`/users/watchlist/${id}`),
     toggleLike: (d) => api.post('/users/liked/add', d),
