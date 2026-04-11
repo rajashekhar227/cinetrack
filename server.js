@@ -28,10 +28,8 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`🎬 CineTrack running at http://localhost:${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`🎬 CineTrack running at http://localhost:${PORT}`);
+});
 
 module.exports = app;
